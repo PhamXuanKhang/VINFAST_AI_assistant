@@ -1,0 +1,60 @@
+graph TD
+    %% Định nghĩa màu sắc cho các luồng
+    classDef user fill:#e3f2fd,stroke:#1e88e5,stroke-width:2px;
+    classDef ai fill:#e8f5e9,stroke:#43a047,stroke-width:2px;
+    classDef system fill:#fff3e0,stroke:#fb8c00,stroke-width:2px;
+    classDef decision fill:#f3e5f5,stroke:#8e24aa,stroke-width:2px;
+    classDef endpoint fill:#ffebee,stroke:#e53935,stroke-width:2px;
+
+    %% Bắt đầu
+    Start([Khách hàng mở Chat]) --> Greet[AI: Chào hỏi & Đặt câu hỏi mở để lấy bối cảnh]:::ai
+
+    %% ==========================================
+    %% VÒNG LẶP 1: KHÁM PHÁ NHU CẦU & TƯ VẤN XE
+    %% ==========================================
+    Greet --> UserInput1[/User: Nhập thông tin nhu cầu xe, thắc mắc, hoàn cảnh gia đình/]:::user
+    
+    UserInput1 --> ProcessTools[Hệ thống: Gọi Tool Tra cứu xe, RAG Engine, Tính toán]:::system
+    
+    ProcessTools --> AIsuggest[AI: Gợi ý xe phù hợp, Cung cấp Brochure PDF <br/> ĐỒNG THỜI hỏi thêm để làm rõ tiêu chí]:::ai
+    
+    AIsuggest --> DecisionNeeds{AI: Đã thu thập đủ thông tin <br/> để chốt mẫu xe chưa?}:::decision
+    
+    DecisionNeeds -- Khách đổi ý/Còn thắc mắc --> UserInput1
+    
+    %% ==========================================
+    %% VÒNG LẶP 2: TƯ VẤN TÀI CHÍNH
+    %% ==========================================
+    DecisionNeeds -- Khách có vẻ ưng ý 1 mẫu --> AIFinance[AI: Hỏi thông tin Tài chính <br/> Mua thẳng hay trả góp? Ngân sách dự kiến?]:::ai
+    
+    AIFinance --> UserInput2[/User: Cung cấp ngân sách, mức lương, số tiền có sẵn/]:::user
+    
+    UserInput2 --> LogicBudget{Logic Backend: <br/> Ngân sách >= Giá lăn bánh?}:::decision
+    
+    LogicBudget -- Đủ tiền --> FullPay[AI: Tư vấn phương án Trả thẳng <br/> + Thông báo khuyến mãi hiện hành]:::ai
+    LogicBudget -- Không đủ --> Installment[AI: Tư vấn phương án Trả góp]:::ai
+    
+    Installment --> AskDownPay[AI: Hỏi số tiền trả trước mong muốn]:::ai
+    AskDownPay --> UserInput3[/User: Nhập số tiền trả trước/]:::user
+    
+    UserInput3 --> CalcFinance[Hệ thống: Gọi API Tính toán Tài chính]:::system
+    CalcFinance --> OutputFinance[AI: Trình bày gói vay ưu việt <br/> Gốc & lãi dự kiến mỗi tháng]:::ai
+    
+    FullPay --> DecisionBuy
+    OutputFinance --> DecisionBuy
+    
+    %% ==========================================
+    %% HANDOFF TO HUMAN (CHUYỂN GIAO)
+    %% ==========================================
+    DecisionBuy{Khách hàng phản hồi <br/> về phương án?}:::decision
+    
+    DecisionBuy -- Cân nhắc thêm/Đổi ý --> UserInput1
+    DecisionBuy -- Đồng ý / Muốn lái thử --> AskContact[AI: Xin thông tin liên hệ <br/> để Sale hỗ trợ thủ tục/lái thử]:::ai
+    
+    AskContact --> UserInputContact[/User: Cung cấp Tên, Số điện thoại/]:::user
+    
+    UserInputContact --> SaveDB[Hệ thống: Lưu Context hội thoại <br/> & Thông tin khách vào Database]:::system
+    
+    SaveDB --> Handoff[Chuyển luồng: Handoff cho CRM / Sale thật]:::endpoint
+    
+    Handoff --> End([Kết thúc: Sale nhận thông báo & Liên hệ trực tiếp khách]):::endpoint
