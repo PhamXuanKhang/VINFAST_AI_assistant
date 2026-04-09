@@ -55,15 +55,13 @@ def get_car_info(
         specs = car.get("detailed_specs", {})
         result = {
             "car_id": car["car_id"],
-            "model": f"{car['model_series']} {car['trim_level']}",
+            "model": f"{car.get('model_series', '')} {car.get('trim_level', '')}",
             "body_style": car.get("body_style"),
             "seats": car.get("seats"),
             "range_km": car.get("range_wltp_km"),
             "battery_kwh": car.get("battery_capacity"),
             "drivetrain": car.get("drivetrain"),
             "retail_price_vnd": car.get("retail_price"),
-            "deposit_vnd": car.get("deposit_vnd"),
-            "promo": car.get("promo_note"),
             "motor_power_kw": specs.get("motor_power_kw"),
             "charge_time_min": specs.get("charge_dc_0_70_min"),
             "has_adas": specs.get("has_adas"),

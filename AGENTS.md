@@ -1,4 +1,4 @@
-# AGENTS.md — VinFast AI Chatbot (Vivi AI)
+# AGENTS.md — VinFast AI Chatbot (Vifa AI)
 
 > Tài liệu hướng dẫn phát triển giao diện React.js cho chatbot tư vấn xe điện VinFast.  
 > Dựa trên: Canvas (02), User Stories & 4 Paths (03), Failure Modes (05), Flow diagram.
@@ -7,7 +7,7 @@
 
 ## 1. Tổng quan hệ thống
 
-**Tên agent:** Vivi AI — Online Assistant  
+**Tên agent:** Vifa AI — Online Assistant  
 **Loại:** Augmentation (AI gợi ý, con người quyết định cuối)  
 **Scope:** Tư vấn xe điện VinFast + tính toán tài chính trả góp  
 **Không thuộc scope:** So sánh hãng khác, tin tức báo chí, thông tin không liên quan VinFast
@@ -224,7 +224,7 @@ Khi nhấn 👎 → hiện `<FeedbackModal />` với lý do: "Sai thông tin" / 
 
 ```
 <ChatWidget>                        // Container chính, quản lý phase state
-  <ChatHeader />                    // Logo Vivi AI, status "Online"
+  <ChatHeader />                    // Logo Vifa AI, status "Online"
   <MessageList>                     // Danh sách bubble
     <AiBubble />                    // Tin nhắn AI
     <UserBubble />                  // Tin nhắn user

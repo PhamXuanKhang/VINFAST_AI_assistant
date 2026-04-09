@@ -284,7 +284,7 @@ Sử dụng schema đã thiết kế trong `guide.md`, bổ sung dữ liệu cò
 - Hoặc loại bỏ hoàn toàn nếu dùng LangGraph native tool calling
 
 #### [NEW] [prompts.py](file:///d:/tai_lieu_hoc_AI/AI20K_VINUNI/assignments/VINFAST_AI_assistant/src/agent/prompts.py)
-- System prompt cho Vivi AI (domain VinFast)
+- System prompt cho Vifa AI (domain VinFast)
 - Prompt templates cho từng phase
 - Guardrail instructions (out-of-scope, prompt injection)
 
@@ -310,7 +310,7 @@ Sử dụng schema đã thiết kế trong `guide.md`, bổ sung dữ liệu cò
 ### Component 5: Application Entry Point
 
 #### [MODIFY] [app.py](file:///d:/tai_lieu_hoc_AI/AI20K_VINUNI/assignments/VINFAST_AI_assistant/app.py)
-- Thay "Inventory Management Agent" → "VinFast AI Assistant — Vivi AI"
+- Thay "Inventory Management Agent" → "VinFast AI Assistant — Vifa AI"
 - Cập nhật UI layout cho domain tư vấn xe
 - Tích hợp LangGraph agent thay cho ReAct cũ
 - Thêm conversation history display

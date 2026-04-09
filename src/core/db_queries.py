@@ -48,9 +48,9 @@ def get_cars_by_filters(
     cursor = conn.cursor()
 
     query = """
-        SELECT v.*, p.retail_price, p.deposit_vnd, p.promo_note
-        FROM car_variants v
-        LEFT JOIN car_prices p ON v.car_id = p.car_id
+        SELECT v.*, p.retail_price
+        FROM Vehicle_Details v
+        LEFT JOIN Vehicle_Price p ON v.car_id = p.car_id
         WHERE 1=1
     """
     params: list = []
@@ -101,9 +101,9 @@ def get_car_detail(car_id: str) -> Optional[Dict[str, Any]]:
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT v.*, p.retail_price, p.deposit_vnd, p.promo_note, p.effective_date
-        FROM car_variants v
-        LEFT JOIN car_prices p ON v.car_id = p.car_id
+        SELECT v.*, p.retail_price, p.effective_date
+        FROM Vehicle_Details v
+        LEFT JOIN Vehicle_Price p ON v.car_id = p.car_id
         WHERE v.car_id = ?
     """, (car_id,))
 
@@ -130,8 +130,8 @@ def get_all_models() -> List[Dict[str, Any]]:
     cursor.execute("""
         SELECT v.car_id, v.model_series, v.trim_level, v.body_style,
                v.seats, v.range_wltp_km, p.retail_price
-        FROM car_variants v
-        LEFT JOIN car_prices p ON v.car_id = p.car_id
+        FROM Vehicle_Details v
+        LEFT JOIN Vehicle_Price p ON v.car_id = p.car_id
         WHERE v.is_active = 1
         ORDER BY p.retail_price ASC
     """)
@@ -151,7 +151,7 @@ def get_car_price(car_id: str) -> Optional[Dict[str, Any]]:
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT * FROM car_prices WHERE car_id = ?
+        SELECT * FROM Vehicle_Price WHERE car_id = ?
         ORDER BY effective_date DESC LIMIT 1
     """, (car_id,))
 
@@ -174,7 +174,7 @@ def get_location_fees(location_id: str = "HAN") -> Optional[Dict[str, Any]]:
     }
     loc_key = loc_map.get(location_id.strip().lower(), location_id.strip().upper())
 
-    cursor.execute("SELECT * FROM location_tax_fee WHERE location_id = ?", (loc_key,))
+    cursor.execute("SELECT * FROM Location_Tax_Fee WHERE location_id = ?", (loc_key,))
     row = cursor.fetchone()
     conn.close()
     return dict(row) if row else None
@@ -209,7 +209,7 @@ def calculate_on_road_price(car_id: str, location_id: str = "HAN") -> Optional[D
         "insurance_civil": insurance,
         "total_fees": total_fees,
         "total_on_road": total_on_road,
-        "promo_note": price_info.get("promo_note"),
+        "promo_note": None,
     }
 
 
@@ -223,10 +223,10 @@ def get_bank_policies(bank_id: Optional[str] = None) -> List[Dict[str, Any]]:
     cursor = conn.cursor()
 
     if bank_id:
-        cursor.execute("SELECT * FROM bank_loan_policy WHERE bank_id = ?",
+        cursor.execute("SELECT * FROM Bank_Loan_Policy WHERE bank_id = ?",
                         (bank_id.strip().upper(),))
     else:
-        cursor.execute("SELECT * FROM bank_loan_policy ORDER BY interest_rate_year1 ASC")
+        cursor.execute("SELECT * FROM Bank_Loan_Policy ORDER BY interest_rate_promo ASC")
 
     rows = cursor.fetchall()
     conn.close()
