@@ -289,7 +289,7 @@ def init_database():
 
     # ── 2. Tính năng theo category ────────────────────────────────────────
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS Vehicle_Features (
+        CREATE TABLE IF NOT EXISTS Vehicle_Details (
             id             INTEGER PRIMARY KEY AUTOINCREMENT,
             car_id         TEXT    REFERENCES Vehicle_Price(car_id) ON DELETE CASCADE,
             category       TEXT,                            -- safety | comfort | tech | adas
