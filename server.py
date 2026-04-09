@@ -29,16 +29,19 @@ from src.core.db_queries import get_all_models, get_car_detail, get_bank_policie
 # ---------------------------------------------------------------------------
 
 app = FastAPI(
-    title="VinFast AI Assistant — Vivi AI",
+    title="VinFast AI Assistant — Vifa AI",
     description="API backend cho chatbot tư vấn xe điện VinFast",
     version="1.0.0",
 )
 
 # CORS for React dev server
-cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+cors_origins = os.getenv(
+    "CORS_ORIGINS",
+    "http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000"
+).split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins,
+    allow_origins=[o.strip() for o in cors_origins],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -72,7 +75,7 @@ class FeedbackRequest(BaseModel):
 
 @app.get("/")
 def root():
-    return {"name": "VinFast AI Assistant — Vivi AI", "status": "online"}
+    return {"name": "VinFast AI Assistant — Vifa AI", "status": "online"}
 
 
 @app.post("/api/chat", response_model=ChatResponse)

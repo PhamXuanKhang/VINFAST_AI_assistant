@@ -8,8 +8,5 @@ TEAM_PLAN.md
 TOOL_FLOW.md
 .venv/
 day3env/
-data/vinfast.db
-frontend/
-frontend_latest.zip
 data/vinfast.db-shm
 data/vinfast.db-wal

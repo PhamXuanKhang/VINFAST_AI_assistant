@@ -1,7 +1,7 @@
 """
 VinFast AI Assistant — Database Initialization Script
 =====================================================
-Creates all tables and seeds reference data for the Vivi AI chatbot.
+Creates all tables and seeds reference data for the Vifa AI chatbot.
 
 Usage:
     python data/db_init.py          # Creates/resets vinfast.db
