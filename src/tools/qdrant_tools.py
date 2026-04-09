@@ -1,230 +1,231 @@
-# tools/vinfast_tools.py
+# test_agent.py
 """
-LangChain tools để query Qdrant cho VinFast RAG Agent.
+Agent test tương tác CLI — dùng để kiểm tra 3 VinFast tools.
 
-Payload schema (thực tế từ collection):
-  chunk_id, doc_id, chunk_index, text, model, doc_type,
-  category, source, source_url, lang, updated_at, ttl_hours, confidence
+Chạy:
+    python test_agent.py
 
-doc_type values : spec | faq | forum_qa | installment
-model values    : VF 3 | VF 5 | VF 6 | VF 7 | VF 8 | VF 9 | all | unknown
+Chế độ:
+    1. Chat tự do  → agent tự chọn tool phù hợp
+    2. Test nhanh  → chạy bộ câu hỏi mẫu bao phủ cả 3 tools
 """
 
-from __future__ import annotations
+import sys
+import time
+import textwrap
 
-from typing import Literal, Optional
-
-from langchain.tools import tool
-from pydantic import BaseModel, Field
-from qdrant_client import QdrantClient
-from qdrant_client.models import Filter, FieldCondition, MatchValue, MatchAny, Filter as QFilter
-from sentence_transformers import SentenceTransformer
-
-# ── Config ────────────────────────────────────────────────────────────────────
-QDRANT_HOST = "localhost"
-QDRANT_PORT = 7333
-COLLECTION  = "vinfast_rag"
-EMBED_MODEL = "bkai-foundation-models/vietnamese-bi-encoder"
-TOP_K       = 5
-
-DocType = Literal["spec", "faq", "forum_qa", "installment"]
-ModelName = Literal["VF 3", "VF 5", "VF 6", "VF 7", "VF 8", "VF 9", "all"]
-
-# ── Singletons (lazy-load để tránh load lúc import) ───────────────────────────
-_qdrant: Optional[QdrantClient] = None
-_encoder: Optional[SentenceTransformer] = None
-
-
-def _get_qdrant() -> QdrantClient:
-    global _qdrant
-    if _qdrant is None:
-        _qdrant = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
-    return _qdrant
-
-
-def _get_encoder() -> SentenceTransformer:
-    global _encoder
-    if _encoder is None:
-        _encoder = SentenceTransformer(EMBED_MODEL)
-    return _encoder
-
-
-# ── Helper ────────────────────────────────────────────────────────────────────
-def _format_hits(hits: list) -> str:
-    """Chuyển Qdrant ScoredPoint → chuỗi cho agent đọc."""
-    if not hits:
-        return "Không tìm thấy thông tin phù hợp trong cơ sở dữ liệu."
-
-    parts = []
-    for i, h in enumerate(hits, 1):
-        p = h.payload
-        parts.append(
-            f"[{i}] [{p.get('doc_type','?').upper()}] {p.get('model','')} | "
-            f"score={h.score:.3f} | source={p.get('source','?')}\n"
-            f"URL: {p.get('source_url','')}\n"
-            f"{p.get('text','')[:600]}"
-            f"{'...' if len(p.get('text','')) > 600 else ''}"
-        )
-    return "\n\n---\n\n".join(parts)
-
-
-def _build_filter(
-    doc_types: Optional[list[DocType]] = None,
-    models: Optional[list[ModelName]] = None,
-) -> Optional[Filter]:
-    """Tạo Qdrant Filter từ doc_type và model."""
-    conditions = []
-
-    if doc_types:
-        conditions.append(
-            FieldCondition(key="doc_type", match=MatchAny(any=doc_types))
-        )
-
-    if models:
-        # Bao gồm "all" để lấy doc áp dụng cho mọi xe
-        models_with_all = list(set(models) | {"all"})
-        conditions.append(
-            FieldCondition(key="model", match=MatchAny(any=models_with_all))
-        )
-
-    if not conditions:
-        return None
-
-    return QFilter(must=conditions)
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# Tool 1 — Semantic search tổng quát
+# ── LangChain / LangGraph ──────────────────────────────────────────────────────
+from langchain_openai import ChatOpenAI
+from langgraph.prebuilt import create_react_agent
+# ── VinFast tools ─────────────────────────────────────────────────────────────
+from qdrant_tools import VINFAST_TOOLS
+# Bộ câu hỏi test — bao phủ cả 3 tools
 # ══════════════════════════════════════════════════════════════════════════════
 
-class SemanticSearchInput(BaseModel):
-    query: str = Field(description="Câu hỏi hoặc từ khóa tìm kiếm bằng tiếng Việt")
-    top_k: int = Field(default=TOP_K, ge=1, le=20, description="Số kết quả trả về")
+TEST_CASES = [
+    ("🔍 Semantic search tổng quát",
+     "VinFast có chính sách bảo hành pin như thế nào?",
+     "vinfast_semantic_search"),
 
+    ("📋 Filter doc_type=spec",
+     "Thông số kỹ thuật động cơ VF 8 là bao nhiêu?",
+     "vinfast_search_by_doctype"),
 
-@tool(args_schema=SemanticSearchInput)
-def vinfast_semantic_search(query: str, top_k: int = TOP_K) -> str:
-    """
-    Tìm kiếm ngữ nghĩa (semantic search) toàn bộ dữ liệu VinFast.
-    Dùng khi câu hỏi không rõ về loại xe hay loại tài liệu cụ thể.
-    Ví dụ: 'VinFast có chính sách bảo hành pin như thế nào?'
-    """
-    encoder = _get_encoder()
-    vector = encoder.encode(query).tolist()
+    ("❓ Filter doc_type=faq",
+     "Câu hỏi thường gặp về sạc pin VinFast",
+     "vinfast_search_by_doctype"),
 
-    hits = _get_qdrant().search(
-        collection_name=COLLECTION,
-        query_vector=vector,
-        limit=top_k,
-        with_payload=True,
-    )
-    return _format_hits(hits)
+    ("💬 Filter doc_type=forum_qa",
+     "Chủ xe VF 6 phản hồi thực tế về pin thế nào?",
+     "vinfast_search_by_doctype"),
 
+    ("🚗 Filter theo model VF 8",
+     "VF 8 chạy được bao nhiêu km một lần sạc đầy?",
+     "vinfast_search_by_model"),
 
-# ══════════════════════════════════════════════════════════════════════════════
-# Tool 2 — Search theo doc_type
-# ══════════════════════════════════════════════════════════════════════════════
+    ("⚡ Filter model + doc_type",
+     "So sánh thông số pin VF 6 và VF 7",
+     "vinfast_search_by_model"),
 
-class DocTypeSearchInput(BaseModel):
-    query: str = Field(description="Câu hỏi cần tìm kiếm")
-    doc_types: list[DocType] = Field(
-        description=(
-            "Loại tài liệu cần tìm. Chọn một hoặc nhiều trong: "
-            "'spec' (thông số kỹ thuật, giá), "
-            "'faq' (câu hỏi thường gặp chính thức), "
-            "'forum_qa' (hỏi đáp cộng đồng chủ xe thực tế), "
-            "'installment' (thông tin trả góp)"
-        )
-    )
-    top_k: int = Field(default=TOP_K, ge=1, le=20)
-
-
-@tool(args_schema=DocTypeSearchInput)
-def vinfast_search_by_doctype(
-    query: str,
-    doc_types: list[DocType],
-    top_k: int = TOP_K,
-) -> str:
-    """
-    Tìm kiếm có lọc theo loại tài liệu (doc_type).
-
-    Khi nào dùng:
-    - Hỏi thông số kỹ thuật, giá xe → doc_types=['spec']
-    - Hỏi FAQ chính thức từ VinFast → doc_types=['faq']
-    - Hỏi kinh nghiệm thực tế từ chủ xe → doc_types=['forum_qa']
-    - Hỏi trả góp, tài chính → doc_types=['installment']
-    - Muốn so sánh cả FAQ lẫn thực tế → doc_types=['faq', 'forum_qa']
-    """
-    encoder = _get_encoder()
-    vector = encoder.encode(query).tolist()
-    qdrant_filter = _build_filter(doc_types=doc_types)
-
-    hits = _get_qdrant().search(
-        collection_name=COLLECTION,
-        query_vector=vector,
-        query_filter=qdrant_filter,
-        limit=top_k,
-        with_payload=True,
-    )
-    return _format_hits(hits)
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# Tool 3 — Search theo model xe + doc_type (kết hợp)
-# ══════════════════════════════════════════════════════════════════════════════
-
-class ModelDocSearchInput(BaseModel):
-    query: str = Field(description="Câu hỏi cần tìm kiếm")
-    models: list[ModelName] = Field(
-        description=(
-            "Dòng xe VinFast cần lọc. "
-            "Chọn trong: 'VF 3', 'VF 5', 'VF 6', 'VF 7', 'VF 8', 'VF 9', 'all'. "
-            "Tự động bao gồm doc có model='all' (áp dụng cho mọi xe)."
-        )
-    )
-    doc_types: Optional[list[DocType]] = Field(
-        default=None,
-        description="Lọc thêm theo loại tài liệu (để trống = lấy tất cả)"
-    )
-    top_k: int = Field(default=TOP_K, ge=1, le=20)
-
-
-@tool(args_schema=ModelDocSearchInput)
-def vinfast_search_by_model(
-    query: str,
-    models: list[ModelName],
-    doc_types: Optional[list[DocType]] = None,
-    top_k: int = TOP_K,
-) -> str:
-    """
-    Tìm kiếm thông tin về một dòng xe VinFast cụ thể.
-    Tự động bao gồm các tài liệu chung (model='all').
-
-    Ví dụ dùng:
-    - 'VF 8 chạy được bao nhiêu km một lần sạc?' → models=['VF 8']
-    - 'So sánh pin VF 6 và VF 7' → models=['VF 6', 'VF 7'], doc_types=['spec']
-    - 'Chủ xe VF 9 nói gì về hành trình dài?' → models=['VF 9'], doc_types=['forum_qa']
-    """
-    encoder = _get_encoder()
-    vector = encoder.encode(query).tolist()
-    qdrant_filter = _build_filter(doc_types=doc_types, models=models)
-
-    hits = _get_qdrant().search(
-        collection_name=COLLECTION,
-        query_vector=vector,
-        query_filter=qdrant_filter,
-        limit=top_k,
-        with_payload=True,
-    )
-    return _format_hits(hits)
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# Export danh sách tools để dùng trong agent
-# ══════════════════════════════════════════════════════════════════════════════
-
-VINFAST_TOOLS = [
-    vinfast_semantic_search,
-    vinfast_search_by_doctype,
-    vinfast_search_by_model,
+    ("💰 Trả góp",
+     "Điều kiện mua xe VinFast trả góp là gì?",
+     "vinfast_search_by_doctype"),
 ]
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Khởi tạo agent
+# ══════════════════════════════════════════════════════════════════════════════
+
+SYSTEM_PROMPT = """Bạn là trợ lý tư vấn xe điện VinFast.
+Luôn dùng tools để tìm thông tin trước khi trả lời. KHÔNG tự bịa số liệu.
+
+Quy tắc chọn tool:
+- Câu hỏi chung, không rõ xe/loại doc → vinfast_semantic_search
+- Hỏi rõ loại tài liệu (thông số, FAQ, forum, trả góp) → vinfast_search_by_doctype
+- Hỏi về xe cụ thể (VF 3, VF 8...) → vinfast_search_by_model
+
+Trả lời ngắn gọn, chính xác bằng tiếng Việt. Ghi rõ nguồn (spec/faq/forum_qa)."""
+
+
+def build_agent():
+    llm = ChatOpenAI(model="gpt-4o", temperature=0)
+    return create_react_agent(
+        model=llm,
+        tools=VINFAST_TOOLS,
+        prompt=SYSTEM_PROMPT,
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Helpers hiển thị
+# ══════════════════════════════════════════════════════════════════════════════
+
+SEP  = "═" * 65
+SEP2 = "─" * 65
+
+
+def print_header():
+    print(f"\n{SEP}")
+    print("  🚗  VINFAST RAG — TOOL TEST AGENT")
+    print(f"{SEP}")
+    print("  Tools có sẵn:")
+    for t in VINFAST_TOOLS:
+        print(f"    • {t.name}")
+    print(SEP)
+
+
+def parse_result(result: dict) -> tuple[str, list[str]]:
+    """Trả về (answer, tools_used) từ kết quả LangGraph."""
+    messages = result.get("messages", [])
+
+    # Lấy câu trả lời cuối cùng
+    answer = ""
+    for msg in reversed(messages):
+        if hasattr(msg, "content") and msg.content and msg.__class__.__name__ == "AIMessage":
+            # Bỏ qua AIMessage chỉ có tool_calls, chưa có text
+            if isinstance(msg.content, str) and msg.content.strip():
+                answer = msg.content.strip()
+                break
+
+    # Lấy danh sách tools đã gọi
+    tools_used = []
+    for msg in messages:
+        if msg.__class__.__name__ == "AIMessage" and hasattr(msg, "tool_calls"):
+            for tc in (msg.tool_calls or []):
+                tools_used.append(tc.get("name", ""))
+
+    return answer, tools_used
+
+
+def print_result(label: str, question: str, result: dict, elapsed: float):
+    print(f"\n{SEP2}")
+    if label:
+        print(f"  {label}")
+    print(f"  Q: {question}")
+    print(SEP2)
+
+    answer, tools_used = parse_result(result)
+
+    if tools_used:
+        for t in tools_used:
+            print(f"  🔧 Tool dùng : {t}")
+    else:
+        print("  ⚠️  Không có tool nào được gọi")
+
+    wrapped = textwrap.fill(answer or "(không có câu trả lời)",
+                            width=62, initial_indent="  ", subsequent_indent="  ")
+    print(f"\n  💬 Trả lời:\n{wrapped}")
+    print(f"\n  ⏱  {elapsed:.2f}s")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Chế độ 1: Test nhanh bộ câu hỏi mẫu
+# ══════════════════════════════════════════════════════════════════════════════
+
+def run_quick_test(agent):
+    print(f"\n{'═'*65}")
+    print(f"  🧪  QUICK TEST — {len(TEST_CASES)} câu hỏi mẫu")
+    print(f"{'═'*65}")
+
+    passed = 0
+    for i, (label, question, expected_tool) in enumerate(TEST_CASES, 1):
+        print(f"\n[{i}/{len(TEST_CASES)}] Đang xử lý...")
+        t0 = time.time()
+        try:
+            result = agent.invoke({"messages": [("human", question)]})
+            elapsed = time.time() - t0
+
+            _, tools_used = parse_result(result)
+            match = expected_tool in tools_used
+            status = "✅" if match else "⚠️ "
+            if match:
+                passed += 1
+
+            print_result(f"{status} {label}", question, result, elapsed)
+            if not match:
+                print(f"  ⚠️  Tool dự kiến: {expected_tool} | Thực tế: {tools_used}")
+
+        except Exception as e:
+            print(f"  ❌ LỖI: {e}")
+
+    print(f"\n{SEP}")
+    print(f"  KẾT QUẢ: {passed}/{len(TEST_CASES)} tool đúng như dự kiến")
+    print(SEP)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Chế độ 2: Chat tự do
+# ══════════════════════════════════════════════════════════════════════════════
+
+def run_chat(agent):
+    print("\n  💬  CHAT MODE — Nhập câu hỏi (gõ 'exit' để thoát)\n")
+    while True:
+        try:
+            question = input("  Bạn: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\n  Thoát.")
+            break
+
+        if not question:
+            continue
+        if question.lower() in ("exit", "quit", "thoát"):
+            print("  Tạm biệt! 👋")
+            break
+
+        t0 = time.time()
+        try:
+            result = agent.invoke({"messages": [("human", question)]})
+            elapsed = time.time() - t0
+            print_result("", question, result, elapsed)
+        except Exception as e:
+            print(f"  ❌ Lỗi: {e}")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Main
+# ══════════════════════════════════════════════════════════════════════════════
+
+def main():
+    print_header()
+
+    print("\n  Chọn chế độ:")
+    print("  [1] Quick test — chạy 7 câu hỏi mẫu tự động")
+    print("  [2] Chat       — hỏi tự do")
+    print("  [q] Thoát\n")
+
+    choice = input("  Lựa chọn (1/2/q): ").strip()
+    if choice == "q":
+        sys.exit(0)
+
+    print("\n  ⏳ Đang khởi tạo agent & load encoder...")
+    agent = build_agent()
+    print("  ✅ Sẵn sàng!\n")
+
+    if choice == "1":
+        run_quick_test(agent)
+    else:
+        run_chat(agent)
+
+
+if __name__ == "__main__":
+    main()
