@@ -1,233 +1,199 @@
-import re
-from typing import List, Dict, Any, Optional, Tuple
-from src.core.llm_provider import LLMProvider
-from src.telemetry.logger import logger
+"""
+VinFast Agent — LangGraph StateGraph Builder
+=============================================
+Builds the compiled LangGraph agent with phase-based routing,
+tool execution, and conversation memory.
+"""
 
-class ReActAgent:
-    """
-    SKELETON: A ReAct-style Agent that follows the Thought-Action-Observation loop.
-    Students should implement the core loop logic and tool execution.
-    """
-    
-    ACTION_RE = re.compile(
-        r"^\s*Action:\s*([a-zA-Z_]\w*)\s*\((.*)\)\s*$",
-        re.MULTILINE,
+import os
+from typing import Literal
+
+from langchain_openai import ChatOpenAI
+from langgraph.graph import END, StateGraph
+from langgraph.prebuilt import ToolNode
+from langgraph.checkpoint.memory import MemorySaver
+
+from src.agent.state import VinFastState
+from src.agent.nodes import (
+    router_node,
+    greeting_node,
+    car_discovery_node,
+    finance_question_node,
+    finance_full_pay_node,
+    installment_node,
+    handoff_node,
+    guardrail_node,
+    extract_state_updates,
+)
+from src.agent.prompts import SYSTEM_PROMPT
+from src.tools.registry import TOOLS
+
+
+def get_llm(model: str = None, temperature: float = 0.3):
+    """Get ChatOpenAI instance with tools bound."""
+    model = model or os.getenv("OPENAI_MODEL", "gpt-4o")
+    api_key = os.getenv("OPENAI_API_KEY")
+
+    llm = ChatOpenAI(
+        model=model,
+        api_key=api_key,
+        temperature=temperature,
     )
-    FINAL_RE = re.compile(r"Final Answer:\s*(.*)", re.DOTALL)
+    return llm
 
-    def __init__(self, llm: LLMProvider, tools: List[Dict[str, Any]], max_steps: int = 5):
-        self.llm = llm
-        self.tools = tools
-        self.max_steps = max_steps
-        self.history = []
 
-    def get_system_prompt(self) -> str:
-        tool_descriptions = "\n".join([f"- {t['name']}: {t['description']}" for t in self.tools])
-        return (
-            "You are a Smart Checkout ReAct Agent.\n"
-            "You can only use these tools:\n"
-            f"{tool_descriptions}\n\n"
-            "STRICT OUTPUT FORMAT — output only ONE JSON object per step, no markdown, no extra text:\n"
-            "When calling a tool:\n"
-            '  {"type": "action", "tool": "<tool_name>", "args": {"<param>": <value>}}\n'
-            "When the answer is ready:\n"
-            '  {"type": "final", "answer": "<your friendly response>"}\n\n'
-            "Rules:\n"
-            "- Output ONLY the JSON object. No markdown fences, no Thought/Action text.\n"
-            "- Do NOT write Observation by yourself.\n"
-            "- Never fabricate tool results.\n"
-            "- Use only the listed tool names.\n"
-            "- If the user asks an off-topic question, immediately output:\n"
-            '  {"type": "final", "answer": "Sorry, I only support smart checkout requests."}\n'
-            "For valid checkout requests, the Final Answer MUST show ALL of:\n"
-            "- Item name & Quantity\n"
-            "- Unit Price & Subtotal (VND)\n"
-            "- Discount applied (%), Discount Amount (VND), & Discounted Subtotal (VND)\n"
-            "- Shipping Fee (VND)\n"
-            "- Final Total (VND)\n"
-            "- Stock status (e.g., In stock / Not enough)\n"
-        )
+def _route_by_phase(state: VinFastState) -> str:
+    """Route to the appropriate phase node based on current_phase."""
+    phase = state.get("current_phase", "GREETING")
 
-    def parse_action(self, text: str) -> Optional[Tuple[str, str]]:
-        match = self.ACTION_RE.search(text or "")
-        if not match:
-            return None
-        return match.group(1).strip(), match.group(2).strip()
+    phase_map = {
+        "GREETING": "greeting",
+        "CAR_DISCOVERY": "car_discovery",
+        "FINANCE_QUESTION": "finance_question",
+        "FINANCE_FULL_PAY": "finance_full_pay",
+        "FINANCE_INSTALLMENT": "installment",
+        "HANDOFF_COLLECT": "handoff",
+        "HANDOFF_DONE": "respond",
+    }
+    return phase_map.get(phase, "car_discovery")
 
-    def parse_final(self, text: str) -> Optional[str]:
-        match = self.FINAL_RE.search(text or "")
-        if not match:
-            return None
-        return match.group(1).strip()
 
-    @staticmethod
-    def _strip_quotes(value: str) -> str:
-        value = value.strip()
-        if len(value) >= 2 and (
-            (value[0] == '"' and value[-1] == '"')
-            or (value[0] == "'" and value[-1] == "'")
-        ):
-            return value[1:-1].strip()
-        return value
+def _should_use_tools(state: VinFastState) -> Literal["tools", "respond"]:
+    """Check if the last AI message has tool calls."""
+    messages = state.get("messages", [])
+    if not messages:
+        return "respond"
 
-    def parse_args_for_tool(self, tool_name: str, raw: str) -> List[Any]:
-        raw = (raw or "").strip()
+    last = messages[-1]
+    if hasattr(last, "tool_calls") and last.tool_calls:
+        return "tools"
+    return "respond"
 
-        if tool_name in {"check_stock", "get_discount"}:
-            # Support both: check_stock("iPhone") and check_stock(item_name="iPhone")
-            arg = raw.split("=", 1)[-1].strip() if "=" in raw else raw
-            return [self._strip_quotes(arg)]
 
-        if tool_name == "calc_shipping":
-            # Support both positional and named arguments.
-            parts = [part.strip() for part in raw.split(",", 1)]
-            if len(parts) != 2:
-                raise ValueError("calc_shipping requires 2 arguments")
+def build_vinfast_graph(checkpointer=None):
+    """Build and compile the VinFast AI chatbot graph.
 
-            left = parts[0].split("=", 1)[-1].strip()
-            right = parts[1].split("=", 1)[-1].strip()
+    Args:
+        checkpointer: LangGraph checkpointer for conversation memory.
+                     Defaults to MemorySaver() if not provided.
 
-            weight = float(left)
-            destination = self._strip_quotes(right)
-            return [weight, destination]
+    Returns:
+        Compiled LangGraph runnable.
+    """
+    llm = get_llm()
+    llm_with_tools = llm.bind_tools(TOOLS)
+    tool_node = ToolNode(TOOLS)
 
-        raise ValueError(f"unsupported_tool={tool_name}")
+    if checkpointer is None:
+        checkpointer = MemorySaver()
 
-    def run(self, user_input: str) -> str:
-        logger.log_event("AGENT_START", {"input": user_input, "model": self.llm.model_name})
+    # --- Define the graph ---
+    graph = StateGraph(VinFastState)
 
-        current_prompt = f"User input: {user_input}\n"
-        system_prompt = self.get_system_prompt()
-        steps = 0
+    # --- Add nodes ---
+    graph.add_node("router", router_node)
+    graph.add_node("greeting", greeting_node)
+    graph.add_node("car_discovery", car_discovery_node)
+    graph.add_node("finance_question", finance_question_node)
+    graph.add_node("finance_full_pay", finance_full_pay_node)
+    graph.add_node("installment", installment_node)
+    graph.add_node("handoff", handoff_node)
+    graph.add_node("guardrail", guardrail_node)
 
-        while steps < self.max_steps:
-            step_no = steps + 1
-            try:
-                result = self.llm.generate(current_prompt, system_prompt=system_prompt)
-            except Exception as exc:
-                logger.error(f"LLM generate failed at step {step_no}: {exc}", exc_info=False)
-                logger.log_event("AGENT_END", {"steps": steps, "status": "llm_error"})
-                return f"Final Answer: error=llm_failure, message={str(exc)}"
+    # LLM node — calls the model with tools
+    def llm_node(state: VinFastState):
+        messages = state["messages"]
+        response = llm_with_tools.invoke(messages)
+        return {"messages": [response]}
 
-            content = ""
-            usage = None
-            latency_ms = None
-            provider_name = "unknown"
-            if isinstance(result, dict):
-                content = str(result.get("content", "")).strip()
-                usage = result.get("usage")
-                latency_ms = result.get("latency_ms")
-                provider_name = result.get("provider", "unknown")
-                
-                # Report usage to tracker
-                from src.telemetry.metrics import tracker
-                if usage and latency_ms:
-                    tracker.track_request(provider_name, self.llm.model_name, usage, latency_ms)
-            else:
-                content = str(result).strip()
+    graph.add_node("llm", llm_node)
+    graph.add_node("tools", tool_node)
+    graph.add_node("post_process", extract_state_updates)
 
-            self.history.append(
-                {
-                    "step": step_no,
-                    "prompt": current_prompt,
-                    "response": content,
-                }
-            )
+    # --- Set entry point ---
+    graph.set_entry_point("router")
 
-            logger.log_event(
-                "LLM_STEP",
-                {
-                    "step": step_no,
-                    "response": content,
-                    "usage": usage,
-                    "latency_ms": latency_ms,
-                },
-            )
+    # --- Add edges ---
 
-            # --- v2: Try Pydantic/JSON parsing first (from parsing.py) ---
-            from src.agent.parsing import parse_message
-            msg = parse_message(content)
+    # Router → Phase nodes (conditional)
+    graph.add_conditional_edges(
+        "router",
+        _route_by_phase,
+        {
+            "greeting": "greeting",
+            "car_discovery": "car_discovery",
+            "finance_question": "finance_question",
+            "finance_full_pay": "finance_full_pay",
+            "installment": "installment",
+            "handoff": "handoff",
+            "respond": "post_process",
+        },
+    )
 
-            if msg is not None:
-                if msg.type == "final":
-                    logger.log_event("AGENT_END", {"steps": step_no, "status": "success", "parser": "json_v2"})
-                    return f"Final Answer: {msg.answer.strip()}"
-                # msg.type == "action"
-                tool_name = msg.tool
-                observation = self._execute_tool_json(tool_name, msg.args)
-                logger.log_event(
-                    "TOOL_CALL",
-                    {"step": step_no, "tool": tool_name, "raw_args": msg.args, "observation": observation},
-                )
-                current_prompt += f"\n{content}\nObservation: {observation}\n"
-                steps += 1
-                continue
+    # Phase nodes → LLM
+    for phase_node in ["greeting", "car_discovery", "finance_question",
+                       "finance_full_pay", "installment", "handoff", "guardrail"]:
+        graph.add_edge(phase_node, "llm")
 
-            # --- v1 fallback: regex parsing (backward-compat with text-format LLM output) ---
-            final_answer = self.parse_final(content)
-            if final_answer:
-                logger.log_event("AGENT_END", {"steps": step_no, "status": "success", "parser": "regex_v1"})
-                return f"Final Answer: {final_answer}"
+    # LLM → Tools or Post-process (conditional)
+    graph.add_conditional_edges(
+        "llm",
+        _should_use_tools,
+        {
+            "tools": "tools",
+            "respond": "post_process",
+        },
+    )
 
-            action = self.parse_action(content)
-            if not action:
-                observation = "error=parse_failed, message=missing_action_or_final_answer"
-                logger.log_event(
-                    "AGENT_PARSE_ERROR",
-                    {"step": step_no, "response": content},
-                )
-                current_prompt += f"\n{content}\nObservation: {observation}\n"
-                steps += 1
-                continue
+    # Tools → LLM (loop back for observation)
+    graph.add_edge("tools", "llm")
 
-            tool_name, raw_args = action
-            observation = self._execute_tool(tool_name, raw_args)
+    # Post-process → END
+    graph.add_edge("post_process", END)
 
-            logger.log_event(
-                "TOOL_CALL",
-                {
-                    "step": step_no,
-                    "tool": tool_name,
-                    "raw_args": raw_args,
-                    "observation": observation,
-                },
-            )
+    # --- Compile ---
+    return graph.compile(checkpointer=checkpointer)
 
-            current_prompt += f"\n{content}\nObservation: {observation}\n"
-            steps += 1
 
-        logger.log_event("AGENT_END", {"steps": steps, "status": "max_steps_exceeded"})
-        return "Final Answer: error=max_steps_exceeded, message=unable_to_reach_final_answer"
+# ---------------------------------------------------------------------------
+# Convenience runner
+# ---------------------------------------------------------------------------
 
-    def _execute_tool(self, tool_name: str, args: str) -> str:
-        """
-        v1: Execute tool using raw string args (regex-parsed).
-        """
-        tool = next((tool for tool in self.tools if tool.get("name") == tool_name), None)
-        if tool is None:
-            return f"error=unknown_tool, tool={tool_name}"
+_graph = None
+_checkpointer = None
 
-        try:
-            parsed_args = self.parse_args_for_tool(tool_name, args)
-            output = tool["func"](*parsed_args)
-            return str(output)
-        except Exception as exc:
-            logger.error(f"Tool execution failed: {tool_name}({args}) -> {exc}", exc_info=False)
-            return f"error=tool_execution_failed, tool={tool_name}, message={str(exc)}"
 
-    def _execute_tool_json(self, tool_name: str, args_dict: dict) -> str:
-        """
-        v2: Execute tool using structured dict args (Pydantic-parsed from parsing.py).
-        """
-        from src.agent.parsing import parse_args_for_tool as json_parse_args
-        tool = next((t for t in self.tools if t.get("name") == tool_name), None)
-        if tool is None:
-            return f"error=unknown_tool, tool={tool_name}"
+def get_agent():
+    """Get or create the singleton agent instance."""
+    global _graph, _checkpointer
+    if _graph is None:
+        _checkpointer = MemorySaver()
+        _graph = build_vinfast_graph(checkpointer=_checkpointer)
+    return _graph
 
-        try:
-            parsed_args = json_parse_args(tool_name, args_dict)
-            output = tool["func"](*parsed_args)
-            return str(output)
-        except Exception as exc:
-            logger.error(f"Tool execution failed (json): {tool_name}({args_dict}) -> {exc}", exc_info=False)
-            return f"error=tool_execution_failed, tool={tool_name}, message={str(exc)}"
+
+def chat(user_message: str, thread_id: str = "default") -> str:
+    """Send a message and get a response. Maintains conversation state.
+
+    Args:
+        user_message: The user's message text.
+        thread_id: Conversation thread ID for memory.
+
+    Returns:
+        The AI assistant's response text.
+    """
+    agent = get_agent()
+    config = {"configurable": {"thread_id": thread_id}}
+
+    result = agent.invoke(
+        {"messages": [("user", user_message)]},
+        config=config,
+    )
+
+    # Extract the last AI message
+    messages = result.get("messages", [])
+    for msg in reversed(messages):
+        if hasattr(msg, "content") and msg.content and not (hasattr(msg, "tool_calls") and msg.tool_calls):
+            return msg.content
+
+    return "Xin lỗi, em chưa thể trả lời câu hỏi này. Bạn muốn kết nối với tư vấn viên không?"

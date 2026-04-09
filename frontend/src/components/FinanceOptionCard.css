@@ -1,0 +1,54 @@
+.finance-opt-card {
+  margin: var(--space-sm) 0;
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  max-width: 250px;
+  animation: fadeInUp 0.4s ease;
+}
+
+.finance-opt-card h4 {
+  margin: 0 0 4px 0;
+  color: #fff;
+  font-size: 14px;
+}
+
+.finance-opt-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-md);
+}
+
+.finance-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.finance-opt-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  color: var(--text-primary);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: left;
+}
+
+.finance-opt-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--vf-green-light);
+  transform: translateX(4px);
+}
+
+.opt-icon {
+  font-size: 20px;
+}
+
+.opt-text {
+  font-weight: 500;
+  font-size: 13px;
+}
