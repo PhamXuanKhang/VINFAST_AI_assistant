@@ -10,3 +10,5 @@ TOOL_FLOW.md
 day3env/
 data/vinfast.db-shm
 data/vinfast.db-wal
+node_modules/
+package-lock.json
