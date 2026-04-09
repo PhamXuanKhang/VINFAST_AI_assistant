@@ -9,36 +9,44 @@ interface QuickReply { label: string; value: string }
 const quickRepliesByPhase: Record<string, QuickReply[]> = {
   idle: [
     { label: 'Tìm xe cho gia đình', value: 'Em muốn tìm xe điện cho gia đình 4 người, đi làm hàng ngày' },
-    { label: 'So sánh VF5 vs VF6', value: 'Cho em so sánh chi tiết VF5 Plus và VF6 Plus' },
-    { label: 'Xem chi tiết VF5', value: 'Em muốn xem chi tiết thông số VF5 Plus' },
+    { label: 'So sánh các dòng xe', value: 'Cho em so sánh các dòng xe VinFast' },
+    { label: 'Tính trả góp xe điện', value: 'Tính giúp em chi phí trả góp xe điện' },
   ],
-  interviewing: [
-    { label: 'Đi làm 50-60km/ngày', value: 'Em đi làm khoảng 50-60km/ngày, cuối tuần chở gia đình đi Ba Vị' },
-    { label: 'Ngân sách ~12tr/tháng', value: 'Ngân sách góp tối đa 12 triệu mỗi tháng' },
-    { label: 'Thu nhập 25tr/tháng', value: 'Thu nhập hàng tháng khoảng 25 triệu' },
+  greeting: [
+    { label: 'Tìm hiểu về xe VinFast', value: 'Tôi muốn tìm hiểu về xe VinFast' },
+    { label: 'Tính trả góp xe điện', value: 'Tính trả góp xe điện' },
+    { label: 'So sánh các dòng xe', value: 'So sánh các dòng xe' },
   ],
-  recommendation: [
-    { label: 'Xem chi tiết VF5', value: 'Em muốn xem chi tiết thông số VF5 Plus' },
-    { label: 'Xem chi tiết VF6', value: 'Em muốn xem chi tiết thông số VF6 Plus' },
-    { label: 'So sánh VF5 vs VF6', value: 'Cho em so sánh chi tiết VF5 Plus và VF6 Plus' },
-    { label: 'Tính chi phí trả góp', value: 'Tính giúp em chi phí trả góp cho VF5 Plus' },
+  car_discovery: [
+    { label: 'Tìm xe gia đình 5-7 chỗ', value: 'Tôi cần xe 5-7 chỗ cho gia đình' },
+    { label: 'Xe đi làm hàng ngày', value: 'Xe đi làm hàng ngày, ngân sách 500-800 triệu' },
+    { label: 'So sánh VF5 vs VF6', value: 'So sánh VF5 và VF6' },
   ],
-  detail: [
-    { label: 'So sánh VF5 vs VF6', value: 'Cho em so sánh chi tiết VF5 Plus và VF6 Plus' },
-    { label: 'Tính chi phí trả góp', value: 'Tính giúp em chi phí trả góp' },
+  clarify: [
+    { label: 'Xe 5 chỗ', value: 'Xe 5 chỗ' },
+    { label: 'Xe 7 chỗ', value: 'Xe 7 chỗ' },
+    { label: 'Ngân sách dưới 600 triệu', value: 'Ngân sách dưới 600 triệu' },
   ],
-  financial: [
-    { label: 'So sánh VF5 vs VF6', value: 'Cho em so sánh VF5 Plus và VF6 Plus' },
-    { label: 'Xem chi tiết VF6', value: 'Em muốn xem chi tiết thông số VF6 Plus' },
-    { label: 'Đặt lịch lái thử', value: 'Em muốn đặt lịch lái thử' },
+  finance_question: [],
+  finance_full_pay: [
+    { label: 'Liên hệ đặt cọc', value: 'Tôi muốn liên hệ để đặt cọc' },
+  ],
+  finance_installment: [
+    { label: 'Dùng lãi suất VinFast 8%', value: 'Dùng lãi suất VinFast 8%/năm' },
+    { label: 'Trả trước 30%', value: 'Tôi muốn trả trước 30%' },
+    { label: 'Vay 60 tháng', value: 'Vay trong 60 tháng' },
   ],
   contact_info: [],
   booking: [
-    { label: 'Chuyển nhân viên sale', value: 'Chuyển nhân viên sale cho em' },
+    { label: 'Chuyển tư vấn viên', value: 'Chuyển tư vấn viên cho em' },
   ],
   handoff: [],
   completed: [
     { label: 'Cuộc trò chuyện mới', value: 'Xin chào' },
+  ],
+  out_of_scope: [
+    { label: 'Tìm hiểu xe VinFast', value: 'Tôi muốn tìm hiểu về xe VinFast' },
+    { label: 'Tính toán tài chính', value: 'Tính toán tài chính' },
   ],
 };
 

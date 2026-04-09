@@ -54,7 +54,7 @@ def router_node(state: VinFastState) -> Dict[str, Any]:
         "kia", "ford", "chevrolet", "nissan", "so sánh với", "hãng khác",
     ]
     if any(kw in last_msg for kw in out_of_scope_keywords):
-        return {"current_phase": "CAR_DISCOVERY", "confidence": "LOW"}
+        return {"current_phase": "GUARDRAIL", "confidence": "LOW"}
 
     # --- Handoff signals ---
     handoff_keywords = ["liên hệ", "tư vấn viên", "đặt cọc", "lái thử",

@@ -125,6 +125,62 @@ def api_feedback(req: FeedbackRequest):
     return {"status": "ok"}
 
 
+@app.get("/api/admin/appointments")
+def api_admin_appointments():
+    """Get all appointments for admin dashboard."""
+    from src.core.db_queries import _get_conn
+    conn = _get_conn()
+    c = conn.cursor()
+    c.execute("SELECT * FROM appointments ORDER BY created_at DESC")
+    rows = c.fetchall()
+    conn.close()
+    return {"appointments": [dict(r) for r in rows]}
+
+
+@app.get("/api/admin/signals")
+def api_admin_signals():
+    """Get telemetry signals from logs."""
+    import json
+    from datetime import datetime
+    log_file = os.path.join(ROOT_DIR, "logs", f"{datetime.now().strftime('%Y-%m-%d')}.log")
+    logs = []
+    if os.path.exists(log_file):
+        with open(log_file, "r", encoding="utf-8") as f:
+            for line in f:
+                try:
+                    data = json.loads(line)
+                    if data.get("event") in ["FEEDBACK", "HANDOFF", "OUT_OF_SCOPE", "CORRECTION"]:
+                        logs.append(data)
+                except:
+                    pass
+    return {"signals": logs[::-1]}
+
+@app.get("/api/admin/metrics")
+def api_admin_metrics():
+    """Calculate and get overall metrics for admin dashboard."""
+    from src.core.db_queries import _get_conn
+    conn = _get_conn()
+    c = conn.cursor()
+    
+    # 1. Total leads
+    c.execute("SELECT COUNT(*) as count FROM leads")
+    total_leads = c.fetchone()["count"]
+    
+    # 2. Total appointments
+    c.execute("SELECT COUNT(*) as count FROM appointments")
+    total_appointments = c.fetchone()["count"]
+    
+    conn.close()
+    return {
+        "metrics": {
+            "total_leads": total_leads,
+            "total_appointments": total_appointments,
+            "handoff_rate": 0, # could be computed from total sessions vs leads
+        }
+    }
+
+
+
 # ---------------------------------------------------------------------------
 # Run
 # ---------------------------------------------------------------------------

@@ -36,6 +36,7 @@ DROP TABLE IF EXISTS car_prices;
 DROP TABLE IF EXISTS location_tax_fee;
 DROP TABLE IF EXISTS bank_loan_policy;
 DROP TABLE IF EXISTS leads;
+DROP TABLE IF EXISTS appointments;
 
 CREATE TABLE car_variants (
     car_id          TEXT PRIMARY KEY,
@@ -95,6 +96,24 @@ CREATE TABLE leads (
     selected_car_id TEXT,
     finance_summary TEXT,                   -- JSON summary
     created_at      TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS appointments (
+    appointment_id TEXT PRIMARY KEY,
+    lead_id INTEGER REFERENCES leads(id),
+    customer_name TEXT,
+    phone TEXT,
+    car_model TEXT,
+    finance_type TEXT,
+    showroom_id TEXT,
+    showroom_name TEXT,
+    appointment_datetime TEXT,
+    confirmation_code TEXT,
+    status TEXT DEFAULT 'NEW',
+    sales_assigned TEXT,
+    notes TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
 );
 
 -- Indexes for common queries
@@ -302,7 +321,7 @@ def init_db(db_path: str = DB_PATH, seed: bool = True) -> None:
         print(f"[OK] Seed data inserted")
 
     # Verify
-    for table in ["car_variants", "car_prices", "location_tax_fee", "bank_loan_policy", "leads"]:
+    for table in ["car_variants", "car_prices", "location_tax_fee", "bank_loan_policy", "leads", "appointments"]:
         cursor.execute(f"SELECT COUNT(*) FROM {table}")
         count = cursor.fetchone()[0]
         print(f"  {table}: {count} rows")
