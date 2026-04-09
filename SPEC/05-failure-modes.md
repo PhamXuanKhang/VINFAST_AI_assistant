@@ -1,10 +1,5 @@
 # Top 3 failure modes — VinFast AI Assistant
 
-Phần này được suy ra từ:
-- 02 (Canvas): Trust + Feasibility
-- 03 (4 paths): Failure path + Low-confidence path + Correction path
-- 04 (Eval): ưu tiên precision cho thông tin tài chính/chính sách, có threshold và red flag
-
 ## Top 3 failure modes
 
 | # | Trigger | Hậu quả | Mitigation |
@@ -29,10 +24,3 @@ Phần này được suy ra từ:
 | Tỉ lệ phiên phải hỏi lại do trả lời mơ hồ | <= 20% | > 35% trong 1 tuần |
 | Out-of-scope accuracy (từ chối/chuyển đúng) | >= 98% | < 95% trong 1 tuần |
 | Handoff rate sau câu trả lời AI | 20-40% (mục tiêu giai đoạn đầu) | > 55% kèm dislike tăng |
-
-## Liên kết 4 paths (phần 03) vào mitigation
-
-- Happy: chỉ trả lời khi có đủ dữ liệu và nguồn tin cậy.
-- Low-confidence: chủ động báo không chắc, yêu cầu thêm thông tin hoặc handoff.
-- Failure: luôn có cơ chế user báo sai nhanh (dislike, "sai rồi", nút chuyển người thật).
-- Correction: log chỉnh sửa của user để cập nhật tri thức và cải thiện rule/tool ở vòng sau.
