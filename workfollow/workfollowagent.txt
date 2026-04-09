@@ -1,0 +1,41 @@
+graph TD
+    %% Định nghĩa màu sắc cho các nhóm (Classes)
+    classDef input_output fill:#e3f2fd,stroke:#1e88e5,stroke-width:2px;
+    classDef memory fill:#f3e5f5,stroke:#8e24aa,stroke-width:2px;
+    classDef phase fill:#e8f5e9,stroke:#43a047,stroke-width:2px;
+    classDef brain fill:#fff3e0,stroke:#fb8c00,stroke-width:2px;
+    classDef tool fill:#ffebee,stroke:#e53935,stroke-width:2px;
+
+    %% 1. Khởi tạo & Phân luồng
+    Start((User Message)):::input_output --> Memory["MemorySaver <br/> Lấy/Lưu Context qua thread_id"]:::memory
+    Memory --> Router{"Router Node"}:::memory
+
+    %% 2. Xử lý ngữ cảnh (Phase Nodes)
+    subgraph Context_Preparation [Chuẩn bị Ngữ cảnh theo Giai đoạn]
+        Router -->|GREETING| NodeGreet[greeting_node]:::phase
+        Router -->|CAR_DISCOVERY| NodeCar[car_discovery_node]:::phase
+        Router -->|FINANCE_...| NodeFin[finance_nodes]:::phase
+        Router -->|OUT_OF_SCOPE| NodeGuard[guardrail_node]:::phase
+    end
+
+    %% 3 & 4 & 5. Khối Suy luận & Vòng lặp ReAct
+    %% Khai báo hình dáng bên trong subgraph trước để cố định vị trí
+    subgraph ReAct_Loop [Vòng lặp Suy luận & Hành động - ReAct]
+        LLM(("LLM Node <br/> OpenAI + bind_tools")):::brain
+        CheckTool{"_should_use_tools?"}:::brain
+        ExecTool["Tool Node <br/> Gọi get_car_info, calc_installment..."]:::tool
+
+        LLM --> CheckTool
+        CheckTool -->|"CÓ gọi Tool"| ExecTool
+        ExecTool -->|"Trả kết quả (Observation)"| LLM
+    end
+
+    %% Nối các Phase Nodes vào LLM sau khi LLM đã được định nghĩa trong subgraph
+    NodeGreet --> LLM
+    NodeCar --> LLM
+    NodeFin --> LLM
+    NodeGuard --> LLM
+
+    %% 6. Hậu kỳ & Trả kết quả
+    CheckTool -->|"KHÔNG gọi Tool"| Post["Post Process Node <br/> Cập nhật State & current_phase"]:::memory
+    Post --> End((Output to UI)):::input_output
