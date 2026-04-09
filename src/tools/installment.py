@@ -56,8 +56,8 @@ def calculate_installment(
     monthly_rate = (annual_interest_rate / 100) / 12
     principal_per_month = loan_amount / loan_term_months
 
-    # Build amortization schedule (first 3 months + last month)
-    schedule_preview = []
+    # Build amortization schedule (FULL table, frontend will handle expand/collapse)
+    schedule = []
     total_interest = 0
     remaining = loan_amount
 
@@ -67,14 +67,13 @@ def calculate_installment(
         payment = principal_per_month + interest
         remaining -= principal_per_month
 
-        if month <= 3 or month == loan_term_months:
-            schedule_preview.append({
-                "month": month,
-                "principal_vnd": int(principal_per_month),
-                "interest_vnd": int(interest),
-                "payment_vnd": int(payment),
-                "remaining_vnd": max(0, int(remaining)),
-            })
+        schedule.append({
+            "month": month,
+            "principal_vnd": int(round(principal_per_month)),
+            "interest_vnd": int(round(interest)),
+            "payment_vnd": int(round(payment)),
+            "remaining_vnd": max(0, int(round(remaining))),
+        })
 
     total_payment = car_price + total_interest  # bao gồm trả trước + gốc + lãi
     first_month_payment = int(principal_per_month + loan_amount * monthly_rate)
@@ -94,10 +93,11 @@ def calculate_installment(
             "loan_term_months": loan_term_months,
             "annual_interest_rate_percent": annual_interest_rate,
             "first_month_payment_vnd": first_month_payment,
+            "monthly_payment_vnd": int(round(principal_per_month + loan_amount * monthly_rate)),
             "total_interest_vnd": int(total_interest),
             "total_payment_vnd": int(total_payment),
         },
-        "schedule_preview": schedule_preview,
+        "schedule": schedule,
         "warning": "Số tiền trả hàng tháng khá cao so với giá xe. Vui lòng kiểm tra lại các tham số." if is_abnormal else None,
         "disclaimer": "⚠️ Bảng tính mang tính chất tham khảo. Tư vấn viên sẽ chốt con số cuối cùng.",
     }, ensure_ascii=False)

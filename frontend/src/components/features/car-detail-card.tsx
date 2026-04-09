@@ -87,7 +87,7 @@ export function CarDetailCard({ carData }: CarDetailProps) {
         <div className="h-2 rounded-full bg-surface-container mb-4" />
         <p className="text-[10px] uppercase tracking-wider text-on-surface-variant mb-2.5">Trang bị nổi bật</p>
         <div className="flex flex-wrap gap-1.5 mb-4">
-          {carData.features.map((f, i) => (
+          {(carData.features || []).map((f, i) => (
             <span key={i} className="px-2.5 py-1 rounded-lg text-[11px] bg-surface-container text-on-surface-variant">
               {f}
             </span>
@@ -98,13 +98,13 @@ export function CarDetailCard({ carData }: CarDetailProps) {
         <div className="grid grid-cols-2 gap-3 mb-4">
           <div className="p-3 rounded-xl bg-success/[0.04]">
             <p className="text-[10px] font-medium text-success uppercase tracking-wider mb-2">Ưu điểm</p>
-            {carData.pros.map((p, i) => (
+            {(carData.pros || []).map((p, i) => (
               <p key={i} className="text-[11px] text-on-surface-variant mb-1">✓ {p}</p>
             ))}
           </div>
           <div className="p-3 rounded-xl bg-warning/[0.04]">
             <p className="text-[10px] font-medium text-warning uppercase tracking-wider mb-2">Lưu ý</p>
-            {carData.cons.map((c, i) => (
+            {(carData.cons || []).map((c, i) => (
               <p key={i} className="text-[11px] text-on-surface-variant mb-1">• {c}</p>
             ))}
           </div>

@@ -48,9 +48,23 @@ def get_cars_by_filters(
     cursor = conn.cursor()
 
     query = """
+        WITH AllVariants AS (
+            SELECT car_id, model_series, trim_level, body_style, seats, range_wltp_km, battery_capacity, drivetrain, is_active, detailed_specs
+            FROM Vehicle_Details
+            UNION
+            SELECT car_id, model_series, trim_level, body_style, seats, range_wltp_km, battery_capacity, drivetrain, is_active, detailed_specs
+            FROM car_variants
+            WHERE car_id NOT IN (SELECT car_id FROM Vehicle_Details)
+        ),
+        AllPrices AS (
+            SELECT car_id, retail_price FROM Vehicle_Price
+            UNION
+            SELECT car_id, retail_price FROM car_prices
+            WHERE car_id NOT IN (SELECT car_id FROM Vehicle_Price)
+        )
         SELECT v.*, p.retail_price
-        FROM Vehicle_Details v
-        LEFT JOIN Vehicle_Price p ON v.car_id = p.car_id
+        FROM AllVariants v
+        LEFT JOIN AllPrices p ON v.car_id = p.car_id
         WHERE 1=1
     """
     params: list = []
@@ -60,8 +74,8 @@ def get_cars_by_filters(
 
     if model_series:
         normalized = _normalize_model(model_series)
-        query += " AND LOWER(v.model_series) LIKE ?"
-        params.append(f"%{normalized}%")
+        query += " AND (LOWER(v.model_series) LIKE ? OR LOWER(v.model_series || ' ' || v.trim_level) LIKE ? OR LOWER(v.car_id) LIKE ?)"
+        params.extend([f"%{normalized}%", f"%{normalized}%", f"%{normalized}%"])
 
     if seats:
         query += " AND v.seats = ?"
@@ -101,9 +115,23 @@ def get_car_detail(car_id: str) -> Optional[Dict[str, Any]]:
     cursor = conn.cursor()
 
     cursor.execute("""
+        WITH AllVariants AS (
+            SELECT car_id, model_series, trim_level, body_style, seats, range_wltp_km, battery_capacity, drivetrain, is_active, detailed_specs
+            FROM Vehicle_Details
+            UNION
+            SELECT car_id, model_series, trim_level, body_style, seats, range_wltp_km, battery_capacity, drivetrain, is_active, detailed_specs
+            FROM car_variants
+            WHERE car_id NOT IN (SELECT car_id FROM Vehicle_Details)
+        ),
+        AllPrices AS (
+            SELECT car_id, retail_price, effective_date FROM Vehicle_Price
+            UNION
+            SELECT car_id, retail_price, effective_date FROM car_prices
+            WHERE car_id NOT IN (SELECT car_id FROM Vehicle_Price)
+        )
         SELECT v.*, p.retail_price, p.effective_date
-        FROM Vehicle_Details v
-        LEFT JOIN Vehicle_Price p ON v.car_id = p.car_id
+        FROM AllVariants v
+        LEFT JOIN AllPrices p ON v.car_id = p.car_id
         WHERE v.car_id = ?
     """, (car_id,))
 
@@ -128,10 +156,24 @@ def get_all_models() -> List[Dict[str, Any]]:
     cursor = conn.cursor()
 
     cursor.execute("""
+        WITH AllVariants AS (
+            SELECT car_id, model_series, trim_level, body_style, seats, range_wltp_km, battery_capacity, drivetrain, is_active, detailed_specs
+            FROM Vehicle_Details
+            UNION
+            SELECT car_id, model_series, trim_level, body_style, seats, range_wltp_km, battery_capacity, drivetrain, is_active, detailed_specs
+            FROM car_variants
+            WHERE car_id NOT IN (SELECT car_id FROM Vehicle_Details)
+        ),
+        AllPrices AS (
+            SELECT car_id, retail_price FROM Vehicle_Price
+            UNION
+            SELECT car_id, retail_price FROM car_prices
+            WHERE car_id NOT IN (SELECT car_id FROM Vehicle_Price)
+        )
         SELECT v.car_id, v.model_series, v.trim_level, v.body_style,
                v.seats, v.range_wltp_km, p.retail_price
-        FROM Vehicle_Details v
-        LEFT JOIN Vehicle_Price p ON v.car_id = p.car_id
+        FROM AllVariants v
+        LEFT JOIN AllPrices p ON v.car_id = p.car_id
         WHERE v.is_active = 1
         ORDER BY p.retail_price ASC
     """)
@@ -151,7 +193,13 @@ def get_car_price(car_id: str) -> Optional[Dict[str, Any]]:
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT * FROM Vehicle_Price WHERE car_id = ?
+        WITH AllPrices AS (
+            SELECT car_id, retail_price, 0 as deposit_vnd, NULL as promo_note, effective_date FROM Vehicle_Price
+            UNION
+            SELECT car_id, retail_price, deposit_vnd, promo_note, effective_date FROM car_prices
+            WHERE car_id NOT IN (SELECT car_id FROM Vehicle_Price)
+        )
+        SELECT * FROM AllPrices WHERE car_id = ?
         ORDER BY effective_date DESC LIMIT 1
     """, (car_id,))
 
@@ -174,7 +222,7 @@ def get_location_fees(location_id: str = "HAN") -> Optional[Dict[str, Any]]:
     }
     loc_key = loc_map.get(location_id.strip().lower(), location_id.strip().upper())
 
-    cursor.execute("SELECT * FROM Location_Tax_Fee WHERE location_id = ?", (loc_key,))
+    cursor.execute("SELECT * FROM location_tax_fee WHERE location_id = ?", (loc_key,))
     row = cursor.fetchone()
     conn.close()
     return dict(row) if row else None
@@ -223,10 +271,10 @@ def get_bank_policies(bank_id: Optional[str] = None) -> List[Dict[str, Any]]:
     cursor = conn.cursor()
 
     if bank_id:
-        cursor.execute("SELECT * FROM Bank_Loan_Policy WHERE bank_id = ?",
+        cursor.execute("SELECT * FROM bank_loan_policy WHERE bank_id = ?",
                         (bank_id.strip().upper(),))
     else:
-        cursor.execute("SELECT * FROM Bank_Loan_Policy ORDER BY interest_rate_promo ASC")
+        cursor.execute("SELECT * FROM bank_loan_policy ORDER BY interest_rate_year1 ASC")
 
     rows = cursor.fetchall()
     conn.close()
@@ -245,7 +293,7 @@ def save_lead(
     finance_summary: Optional[dict] = None,
 ) -> int:
     """Save a customer lead. Returns the lead ID."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = _get_conn()
     cursor = conn.cursor()
 
     cursor.execute(
@@ -259,3 +307,33 @@ def save_lead(
     conn.commit()
     conn.close()
     return lead_id
+
+def schedule_appointment(
+    lead_id: int,
+    customer_name: str,
+    phone: str,
+    car_model: str,
+    finance_type: str,
+    showroom_id: str,
+    showroom_name: str,
+    appointment_datetime: str,
+) -> str:
+    """Save an appointment. Returns the confirmation code."""
+    import uuid
+    import random
+    import string
+
+    conn = _get_conn()
+    cursor = conn.cursor()
+
+    appointment_id = str(uuid.uuid4())
+    confirmation_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
+    cursor.execute(
+        """INSERT INTO appointments (appointment_id, lead_id, customer_name, phone, car_model, finance_type, showroom_id, showroom_name, appointment_datetime, confirmation_code)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (appointment_id, lead_id, customer_name, phone, car_model, finance_type, showroom_id, showroom_name, appointment_datetime, confirmation_code),
+    )
+    conn.commit()
+    conn.close()
+    return confirmation_code

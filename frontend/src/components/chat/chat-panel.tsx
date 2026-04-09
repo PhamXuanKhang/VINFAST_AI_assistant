@@ -98,14 +98,22 @@ export async function processUserMessage(text: string) {
              let mappedData = parsed.data;
              if (type === 'car-card') {
                // Mapping backend python data formatting to frontend carData type implicitly
-               mappedData = {
+                 mappedData = {
                   id: parsed.data.car_id,
                   name: parsed.data.model,
+                  fullName: parsed.data.model,
+                  priceOnRoad: parsed.data.retail_price_vnd,
                   price: parsed.data.retail_price_vnd,
                   range: parsed.data.range_km?.toString(),
                   acceleration: "---",
+                  batteryCapacity: parsed.data.battery_kwh,
                   battery: parsed.data.battery_kwh?.toString(),
-                  image: parsed.data.image_url || "/placeholder.jpg"
+                  motorPower: parsed.data.motor_power_kw,
+                  category: parsed.data.body_style,
+                  seats: parsed.data.seats,
+                  drivetrain: parsed.data.drivetrain,
+                  image: parsed.data.image_url || "/placeholder.jpg",
+                  color: "#006FEE"
                };
              }
              richContent.push({ type, data: mappedData });
