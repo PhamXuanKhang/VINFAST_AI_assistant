@@ -107,7 +107,7 @@ export function CarCard({ carData }: CarCardProps) {
 
         {/* Best For */}
         <div className="flex flex-wrap gap-1.5 mb-4">
-          {carData.bestFor.slice(0, 3).map((item, i) => (
+          {(carData.bestFor || []).slice(0, 3).map((item, i) => (
             <span
               key={i}
               className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] bg-surface-container text-on-surface-variant"

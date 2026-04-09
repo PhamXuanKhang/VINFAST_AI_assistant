@@ -4,19 +4,22 @@ import type { FinanceResult } from '@/lib/finance-calculator';
 
 export type ChatPhase =
   | 'idle'
-  | 'interviewing'
-  | 'recommendation'
-  | 'detail'
-  | 'financial'
+  | 'greeting'
+  | 'car_discovery'
+  | 'clarify'
+  | 'finance_question'
+  | 'finance_full_pay'
+  | 'finance_installment'
   | 'contact_info'
   | 'booking'
   | 'handoff'
-  | 'completed';
+  | 'completed'
+  | 'out_of_scope';
 
 export type MessageSender = 'user' | 'ai' | 'system';
 
 export interface RichContent {
-  type: 'car-card' | 'car-cards' | 'car-detail' | 'finance-table' | 'product-comparison' | 'booking-form' | 'contact-form' | 'profile-card';
+  type: 'car-card' | 'car-cards' | 'car-detail' | 'finance-table' | 'product-comparison' | 'booking-form' | 'contact-form' | 'profile-card' | 'finance-option-card' | 'slot-fill-form' | 'bank-selector' | 'disclaimer-banner' | 'clarify-prompt' | 'out-of-scope-card' | 'handoff-button';
   data?: unknown;
 }
 

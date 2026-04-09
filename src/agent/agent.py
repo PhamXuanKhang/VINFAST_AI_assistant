@@ -54,6 +54,7 @@ def _route_by_phase(state: VinFastState) -> str:
         "FINANCE_INSTALLMENT": "installment",
         "HANDOFF_COLLECT": "handoff",
         "HANDOFF_DONE": "respond",
+        "GUARDRAIL": "guardrail",
     }
     return phase_map.get(phase, "car_discovery")
 
@@ -126,6 +127,7 @@ def build_vinfast_graph(checkpointer=None):
             "finance_full_pay": "finance_full_pay",
             "installment": "installment",
             "handoff": "handoff",
+            "guardrail": "guardrail",
             "respond": "post_process",
         },
     )

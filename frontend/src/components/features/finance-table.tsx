@@ -5,6 +5,14 @@ import { formatVND } from '@/lib/vinfast-data';
 import { Wallet, Zap, CheckCircle2, AlertTriangle, ChevronDown, Info } from 'lucide-react';
 import { useState } from 'react';
 
+interface MonthlyEntry {
+  month: number;
+  principal_vnd: number;
+  interest_vnd: number;
+  payment_vnd: number;
+  remaining_vnd: number;
+}
+
 interface FinanceTableData {
   carName: string;
   paymentType: 'full' | 'loan';
@@ -22,12 +30,14 @@ interface FinanceTableData {
   electricityPerKm: number;
   affordability: 'affordable' | 'tight' | 'overbudget';
   affordabilityRatio: number;
+  schedule?: MonthlyEntry[];
 }
 
 interface FinanceTableProps { data: FinanceTableData; }
 
 export function FinanceTable({ data }: FinanceTableProps) {
   const [showDetails, setShowDetails] = useState(false);
+  const [showFullSchedule, setShowFullSchedule] = useState(false);
 
   const affConfig = {
     affordable: { color: 'text-success', bg: 'bg-success/10', label: 'Phù hợp', icon: <CheckCircle2 className="w-4 h-4" /> },
@@ -35,6 +45,8 @@ export function FinanceTable({ data }: FinanceTableProps) {
     overbudget: { color: 'text-red-500', bg: 'bg-red-500/10', label: 'Vượt ngân sách', icon: <AlertTriangle className="w-4 h-4" /> },
   };
   const aff = affConfig[data.affordability];
+
+  const displaySchedule = showFullSchedule ? (data.schedule || []) : (data.schedule || []).slice(0, 6);
 
   return (
     <div className={cn('w-full rounded-2xl overflow-hidden', 'bg-surface-container-lowest', 'ambient-shadow-sm')}>
@@ -87,7 +99,7 @@ export function FinanceTable({ data }: FinanceTableProps) {
       </button>
 
       {showDetails && (
-        <div className="px-5 pb-4 space-y-2 animate-fade-in-up">
+        <div className="px-5 pb-4 space-y-3 animate-fade-in-up">
           {data.paymentType === 'loan' && (
             <>
               <DetailRow label="Trả trước" value={formatVND(data.downPayment)} />
@@ -96,10 +108,58 @@ export function FinanceTable({ data }: FinanceTableProps) {
               <DetailRow label="Tiền lãi tổng" value={formatVND(data.totalInterest)} warn />
             </>
           )}
+
+          {/* Amortization Schedule Table */}
+          {data.paymentType === 'loan' && data.schedule && data.schedule.length > 0 && (
+            <div className="mt-4">
+              <h5 className="text-sm font-semibold text-on-surface mb-2">📅 Lịch trả góp chi tiết</h5>
+              <div className="overflow-x-auto rounded-lg border border-surface-border">
+                <table className="w-full text-xs">
+                  <thead className="bg-surface-container">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-semibold text-on-surface-variant">Tháng</th>
+                      <th className="px-3 py-2 text-right font-semibold text-on-surface-variant">Gốc</th>
+                      <th className="px-3 py-2 text-right font-semibold text-on-surface-variant">Lãi</th>
+                      <th className="px-3 py-2 text-right font-semibold text-on-surface-variant">Thanh toán</th>
+                      <th className="px-3 py-2 text-right font-semibold text-on-surface-variant">Còn lại</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displaySchedule.map((row) => (
+                      <tr key={row.month} className="border-t border-surface-border hover:bg-surface-container-low/50">
+                        <td className="px-3 py-2 text-on-surface">{row.month}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-on-surface-variant">{formatVND(row.principal_vnd)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-on-surface-variant">{formatVND(row.interest_vnd)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums font-medium text-on-surface">{formatVND(row.payment_vnd)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-on-surface-variant">{formatVND(row.remaining_vnd)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {data.schedule.length > 6 && (
+                <button
+                  onClick={() => setShowFullSchedule(!showFullSchedule)}
+                  className="w-full mt-2 flex items-center justify-center gap-1 text-xs text-primary font-medium hover:underline"
+                >
+                  {showFullSchedule ? 'Thu gọn ▲' : `Xem tất cả ${data.schedule.length} tháng ▼`}
+                </button>
+              )}
+            </div>
+          )}
+
           <div className="flex items-start gap-2 p-3 rounded-xl bg-surface-container-low mt-2">
             <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
             <p className="text-xs text-on-surface-variant leading-relaxed">
               Chi phí điện tính theo giá sinh hoạt EVN bậc 3-4. Pin đi kèm xe, không cần thuê riêng. Bảo hành pin lên đến 10 năm.
+            </p>
+          </div>
+
+          {/* Disclaimer */}
+          <div className="flex items-start gap-2 p-3 rounded-xl bg-warning/10 border border-warning/20">
+            <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
+            <p className="text-xs text-warning leading-relaxed">
+              ⚠️ Bảng tính mang tính chất tham khảo. Tư vấn viên sẽ chốt con số cuối cùng.
             </p>
           </div>
         </div>

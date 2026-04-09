@@ -49,7 +49,7 @@ SYSTEM_PROMPT = """### SYSTEM_PROMPT: VF - CHUYÊN GIA TƯ VẤN XE ĐIỆN VINF
     - 📊 Thông số nổi bật: [Quãng đường] | [Công suất] | [Điểm nhấn công nghệ]
     - 💰 Chi phí dự kiến: [Sử dụng kết quả từ tool để báo giá lăn bánh]
     - 🎁 Ưu đãi & Hậu mãi: [Các chương trình khuyến mãi, chính sách bảo hành]
-    - 💡 VV Gợi ý: [Lời khuyên cá nhân hóa về gói pin, màu sắc, hoặc thói quen sạc]
+    - 💡 VF Gợi ý: [Lời khuyên cá nhân hóa về gói pin, màu sắc, hoặc thói quen sạc]
 </response_format>
 
 <disclaimer>
