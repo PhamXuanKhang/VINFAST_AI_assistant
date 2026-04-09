@@ -14,15 +14,28 @@ interface CarCardProps {
 export function CarCard({ carData }: CarCardProps) {
   const { setSelectedCar, setPhase, addMessage, setTyping } = useChatStore();
 
+  // Defensive: normalise data — AI backend may return different field names
+  const name: string = carData.fullName ?? carData.name ?? (carData as any).model ?? 'VinFast';
+  const shortName: string = carData.name ?? name;
+  const range: number = carData.range ?? (carData as any).range_km ?? 0;
+  const seats: number = carData.seats ?? 0;
+  const battery: number = carData.batteryCapacity ?? (carData as any).battery_kwh ?? 0;
+  const motor: number = carData.motorPower ?? (carData as any).motor_power_kw ?? 0;
+  const price: number = carData.priceOnRoad ?? (carData as any).retail_price_vnd ?? 0;
+  const accentColor: string = carData.color ?? '#004cc3';
+  const available: boolean = carData.showroomAvailable ?? true;
+  const category: string = carData.category ?? 'city';
+  const bestFor: string[] = Array.isArray(carData.bestFor) ? carData.bestFor : [];
+
   const handleSelect = () => {
     setSelectedCar(carData);
     addMessage({
       sender: 'user',
-      content: `Em quan tâm đến ${carData.fullName}. Tính giúp em chi phí nhé.`,
+      content: `Em quan tâm đến ${name}. Tính giúp em chi phí nhé.`,
     });
 
     // Process through mock engine with enriched context
-    const enrichedMsg = `Em quan tâm đến ${carData.fullName}. Tính giúp em chi phí nhé. Lương 25 triệu, ngân sách góp tối đa 12 triệu. Trả trước khoảng 300 triệu. 1500km/tháng.`;
+    const enrichedMsg = `Em quan tâm đến ${name}. Tính giúp em chi phí nhé. Lương 25 triệu, ngân sách góp tối đa 12 triệu. Trả trước khoảng 300 triệu. 1500km/tháng.`;
     processUserMessage(enrichedMsg);
   };
 
@@ -39,7 +52,7 @@ export function CarCard({ carData }: CarCardProps) {
       {/* Car Header - Color Bar */}
       <div
         className="h-2 w-full"
-        style={{ background: `linear-gradient(90deg, ${carData.color}, ${carData.color}88)` }}
+        style={{ background: `linear-gradient(90deg, ${accentColor}, ${accentColor}88)` }}
       />
 
       <div className="p-5">
@@ -52,12 +65,12 @@ export function CarCard({ carData }: CarCardProps) {
                 'font-[family-name:var(--font-plus-jakarta)]'
               )}
             >
-              {carData.fullName}
+              {name}
             </h3>
             <p className="text-xs text-on-surface-variant mt-0.5">
-              {carData.category === 'city' ? 'Thành phố' : carData.category === 'compact-suv' ? 'SUV gọn' : 'SUV'}
+              {category === 'city' ? 'Thành phố' : category === 'compact-suv' ? 'SUV gọn' : 'SUV'}
               {' · '}
-              {carData.seats} chỗ · {carData.range}km tầm vãng
+              {seats > 0 ? `${seats} chỗ · ` : ''}{range > 0 ? `${range}km tầm vãng` : ''}
             </p>
           </div>
           <div
@@ -67,16 +80,16 @@ export function CarCard({ carData }: CarCardProps) {
               'font-[family-name:var(--font-inter)]'
             )}
           >
-            {carData.showroomAvailable ? 'Có sẵn' : 'Đặt trước'}
+            {available ? 'Có sẵn' : 'Đặt trước'}
           </div>
         </div>
 
         {/* Key Specs Grid */}
         <div className="grid grid-cols-4 gap-3 mb-4">
-          <SpecItem icon={<Gauge className="w-3.5 h-3.5" />} label="Tầm vãng" value={`${carData.range}km`} />
-          <SpecItem icon={<Users className="w-3.5 h-3.5" />} label="Chỗ ngồi" value={`${carData.seats}`} />
-          <SpecItem icon={<Battery className="w-3.5 h-3.5" />} label="Pin" value={`${carData.batteryCapacity}kWh`} />
-          <SpecItem icon={<Zap className="w-3.5 h-3.5" />} label="Mô-tơ" value={`${carData.motorPower}HP`} />
+          <SpecItem icon={<Gauge className="w-3.5 h-3.5" />} label="Tầm vãng" value={range > 0 ? `${range}km` : 'N/A'} />
+          <SpecItem icon={<Users className="w-3.5 h-3.5" />} label="Chỗ ngồi" value={seats > 0 ? `${seats}` : 'N/A'} />
+          <SpecItem icon={<Battery className="w-3.5 h-3.5" />} label="Pin" value={battery > 0 ? `${battery}kWh` : 'N/A'} />
+          <SpecItem icon={<Zap className="w-3.5 h-3.5" />} label="Mô-tơ" value={motor > 0 ? `${motor}HP` : 'N/A'} />
         </div>
 
         {/* Divider (surface shift, not line) */}
@@ -94,7 +107,7 @@ export function CarCard({ carData }: CarCardProps) {
                 'font-[family-name:var(--font-plus-jakarta)]'
               )}
             >
-              {formatVND(carData.priceOnRoad)}
+              {price > 0 ? formatVND(price) : 'Liên hệ'}
             </p>
           </div>
           <div className="text-right">
@@ -106,17 +119,19 @@ export function CarCard({ carData }: CarCardProps) {
         </div>
 
         {/* Best For */}
-        <div className="flex flex-wrap gap-1.5 mb-4">
-          {carData.bestFor.slice(0, 3).map((item, i) => (
-            <span
-              key={i}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] bg-surface-container text-on-surface-variant"
-            >
-              <Check className="w-2.5 h-2.5 text-success" />
-              {item}
-            </span>
-          ))}
-        </div>
+        {bestFor.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-4">
+            {bestFor.slice(0, 3).map((item, i) => (
+              <span
+                key={i}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] bg-surface-container text-on-surface-variant"
+              >
+                <Check className="w-2.5 h-2.5 text-success" />
+                {item}
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* CTA */}
         <button
@@ -130,7 +145,7 @@ export function CarCard({ carData }: CarCardProps) {
             'font-[family-name:var(--font-inter)]'
           )}
         >
-          Tính chi phí cho {carData.name}
+          Tính chi phí cho {shortName}
           <ChevronRight className="w-4 h-4" />
         </button>
       </div>

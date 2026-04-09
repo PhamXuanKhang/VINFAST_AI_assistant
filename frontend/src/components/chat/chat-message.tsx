@@ -9,6 +9,8 @@ import { ProductComparison } from '@/components/features/product-comparison';
 import { BookingForm } from '@/components/features/booking-form';
 import { ContactForm } from '@/components/features/contact-form';
 import { ProfileCard } from '@/components/features/profile-card';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface ChatMessageProps { message: ChatMessageType; }
 
@@ -37,9 +39,11 @@ export function ChatMessage({ message }: ChatMessageProps) {
           <div className={cn(
             'px-4 py-3 text-[15px] leading-relaxed',
             isUser ? cn('bg-primary text-primary-foreground bubble-user', 'font-[family-name:var(--font-inter)]') : cn('bg-surface-container-high text-on-surface bubble-ai', 'font-[family-name:var(--font-inter)]'),
-            isAI && 'whitespace-pre-wrap',
+            'whitespace-pre-wrap flex flex-col gap-2',
           )}>
-            {message.content}
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {message.content}
+            </ReactMarkdown>
           </div>
           {message.richContent && message.richContent.length > 0 && (
             <div className="mt-2 space-y-3 animate-fade-in-up">

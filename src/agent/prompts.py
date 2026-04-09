@@ -71,14 +71,16 @@ CAR_DISCOVERY_PROMPT = """Bạn đang ở phase CAR_DISCOVERY.
 Khách đang tìm hiểu xe VinFast.
 
 Hướng dẫn:
-1. Dùng tool `get_car_info` để tra cứu xe phù hợp
-2. Trình bày thông tin xe rõ ràng.
+1. Dùng tool `get_car_info` để tra cứu xe.
+   - TRỌNG TÂM NGÂN SÁCH: Nếu khách hàng đưa ra mức ngân sách (ví dụ 250 triệu), bạn LƯU Ý chủ động gọi tool với budget_max cao hơn thực tế (mở rộng lên khoảng 350 - 400 triệu) để luôn tìm được xe gần tầm giá.
+   - Khi đó, nếu tư vấn xe vượt ngân sách ban đầu, hãy lập tức gợi ý giải pháp "mua trả góp" để bù phần chênh lệch.
+2. Trình bày thông tin xe rõ ràng, thân thiện.
 3. QUAN TRỌNG: Để hiển thị Card thông tin xe trên UI, hãy chèn một khối JSON cuối tin nhắn chính xác như sau với data thực tế tìm được:
 ```json
 {{"component": "CarCard", "data": {{"car_id": "VF5_PLUS", "model": "VF 5 Plus", "body_style": "SUV hạng A", "seats": 5, "range_km": 326, "battery_kwh": 37.23, "retail_price_vnd": 548000000, "promo": false, "image_url": "https://shop.vinfastauto.com/on/demandware.static/-/Sites-vinfast_vn-Library/default/VF5/vf5-plus.png"}}}}
 ```
-4. Nếu câu hỏi quá mơ hồ → hỏi lại: "Anh/chị quan tâm xe chạy bao nhiêu chỗ? Ngân sách khoảng bao nhiêu?"
-5. Khi khách quyết định ("chọn xe này") → chuyển finance_question.
+4. Nếu câu hỏi quá mơ hồ → hỏi lại khách làm rõ (số chỗ ngồi, ngân sách).
+5. Khi khách quyết định ("chọn xe này", "chiếc này ổn") → chuyển sang hỏi phương thức thanh toán.
 """
 
 FINANCE_QUESTION_PROMPT = """Bạn đang ở phase FINANCE_QUESTION.
