@@ -1,46 +1,63 @@
 import sqlite3
 import pandas as pd
 
-
 def display_all_sqlite_data(db_file):
     try:
-        # Kết nối đến database
         conn = sqlite3.connect(db_file)
         cursor = conn.cursor()
 
-        # 1. Lấy danh sách tất cả các bảng trong database
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
         tables = cursor.fetchall()
 
         if not tables:
-            print(f"Database '{db_file}' trống (không có bảng nào).")
+            print(f"Database '{db_file}' trống.")
             return
 
-        print(f"--- ĐANG TRÍCH XUẤT DỮ LIỆU TỪ: {db_file} ---\n")
+        print(f"\n{'='*80}")
+        print(f"  DATABASE: {db_file}")
+        print(f"{'='*80}")
 
-        # 2. Lặp qua từng bảng và in dữ liệu
-        for table_name in tables:
-            table_name = table_name[0]
-            print(f"📌 Bảng: {table_name}")
-
-            # Sử dụng pandas để đọc và hiển thị cho đẹp
+        for (table_name,) in tables:
             df = pd.read_sql_query(f"SELECT * FROM {table_name}", conn)
 
-            if df.empty:
-                print("   (Bảng này không có dữ liệu)")
-            else:
-                print(df.to_string(index=False))  # index=False để ẩn cột chỉ số của pandas
+            print(f"\n📋 {table_name} ({len(df)} dòng)")
+            print("─" * 80)
 
-            print("-" * 50)
+            if df.empty:
+                print("  (Bảng chưa có dữ liệu)")
+            else:
+                # Format số tiền
+                for col in df.columns:
+                    if any(k in col.lower() for k in ["price", "fee", "rent", "retail"]):
+                        df[col] = df[col].apply(
+                            lambda x: f"{int(x):,} ₫".replace(",", ".") if pd.notna(x) and x else "-"
+                        )
+                    elif any(k in col.lower() for k in ["rate", "tax"]):
+                        df[col] = df[col].apply(
+                            lambda x: f"{float(x)*100:.0f}%" if pd.notna(x) and x else "-"
+                        )
+
+                # Rút gọn cột text dài
+                for col in df.columns:
+                    if df[col].dtype == object:
+                        df[col] = df[col].apply(
+                            lambda x: (x[:50] + "…") if isinstance(x, str) and len(x) > 50 else x
+                        )
+
+                pd.set_option("display.max_columns", None)
+                pd.set_option("display.width", 120)
+                pd.set_option("display.max_colwidth", 50)
+                pd.set_option("display.colheader_justify", "left")
+
+                print(df.to_string(index=False))
+
+            print("─" * 80)
+
+        conn.close()
 
     except sqlite3.Error as e:
-        print(f"Lỗi khi kết nối SQLite: {e}")
-    finally:
-        if conn:
-            conn.close()
+        print(f"❌ Lỗi SQLite: {e}")
 
 
 if __name__ == "__main__":
-    # Thay 'your_database.db' bằng đường dẫn file của bạn
-    path_to_db = 'vinfast.db'
-    display_all_sqlite_data(path_to_db)
+    display_all_sqlite_data("vinfast.db")
