@@ -1,0 +1,31 @@
+.quick-reply-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  padding: var(--space-sm) 0;
+  animation: fadeInUp 0.4s ease 0.2s both;
+}
+
+.quick-reply-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-full);
+  padding: 8px 16px;
+  font-size: 12.5px;
+  color: var(--vf-green-light);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all var(--transition-normal);
+  white-space: nowrap;
+}
+
+.quick-reply-btn:hover {
+  background: rgba(0, 166, 81, 0.12);
+  border-color: var(--vf-green);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.quick-reply-btn:active {
+  transform: scale(0.97);
+}
