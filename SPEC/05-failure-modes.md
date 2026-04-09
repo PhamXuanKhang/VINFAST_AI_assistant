@@ -1,86 +1,38 @@
-# Top 3 failure modes
+# Top 3 failure modes — VinFast AI Assistant
 
-Liệt kê cách product có thể fail — không phải list features.
+Phần này được suy ra từ:
+- 02 (Canvas): Trust + Feasibility
+- 03 (4 paths): Failure path + Low-confidence path + Correction path
+- 04 (Eval): ưu tiên precision cho thông tin tài chính/chính sách, có threshold và red flag
 
-> **"Failure mode nào user KHÔNG BIẾT bị sai? Đó là cái nguy hiểm nhất."**
-
----
-
-## Template
-
-| # | Trigger | Hậu quả | Mitigation |
-|---|---------|---------|------------|
-| 1 |   |   |   |
-| 2 |   |   |   |
-| 3 |   |   |   |
-
----
-
-## Ví dụ
+## Top 3 failure modes
 
 | # | Trigger | Hậu quả | Mitigation |
 |---|---------|---------|------------|
-| 1 | **Chatbot y tế:** bệnh nhân hỏi triệu chứng hiếm, ngoài training data | AI trả lời tự tin nhưng sai — **user không biết bị sai**, tin và tự điều trị | Detect domain ngoài scope → trả lời "Tôi không đủ thông tin, hãy hỏi bác sĩ" thay vì đoán |
-| 2 | **Recommendation engine:** user mua quà cho người khác, pattern khác hẳn lịch sử | AI gợi ý sản phẩm hoàn toàn sai domain, user mất thời gian lọc | Cho user chọn context ("mua cho ai?") trước khi gợi ý. Reset recommendation khi detect mua ngoài pattern |
-| 3 | **AI agent gửi email:** user duyệt nhanh, không đọc kỹ draft AI viết | Email gửi đi có thông tin sai hoặc tone không phù hợp — **đã gửi rồi, không recall được** | Highlight phần AI thay đổi so với template. Delay gửi 30 giây + nút undo |
+| 1 | User hỏi tài chính hoặc ưu đãi cụ thể (trả trước, trả góp, lãi suất), nhưng dữ liệu thiếu/cũ; AI vẫn trả lời số rất tự tin | User tin con số sai, kỳ vọng sai khi gặp Sales, giảm trust và có rủi ro khiếu nại | Chỉ cho phép trả lời số bằng tool tính toán + nguồn dữ liệu đã kiểm duyệt. Bắt buộc hiển thị thời điểm cập nhật và disclaimer "tham khảo". Nếu thiếu dữ liệu thì chuyển Low-confidence hoặc handoff, không đoán |
+| 2 | Câu hỏi mơ hồ kiểu "xe điện rẻ nhất trả góp thế nào" nhưng AI không hỏi lại thông tin đầu vào (mẫu xe, trả trước, kỳ hạn) và đưa luôn 1 phương án | Gợi ý sai nhu cầu, user phải hỏi lại nhiều lần, tăng tỉ lệ rời phiên hoặc chuyển người thật quá sớm | Thiết kế flow hỏi làm rõ bắt buộc (slot filling) trước khi tính. Chỉ trả kết quả khi đủ biến đầu vào; nếu thiếu thì đưa 2-3 lựa chọn có giả định rõ và cho user chọn |
+| 3 | User hỏi ngoài phạm vi hoặc cố tình prompt injection (so sánh hãng khác, tin đồn báo chí, ép bot bỏ quy tắc) | AI hallucinate hoặc trả lời vượt phạm vi, gây sai lệch thông tin và ảnh hưởng thương hiệu | Áp guardrail phạm vi domain VinFast + policy filter. Retrieval-only cho thông tin nhạy cảm. Câu hỏi ngoài scope phải từ chối lịch sự và chuyển tư vấn viên |
 
----
+## Vì sao chọn 3 failure này (logic ưu tiên)
 
-## Cách nghĩ failure modes
+| Failure mode | Severity | Likelihood | Lý do ưu tiên |
+|--------------|----------|------------|---------------|
+| #1 Sai số tài chính/chính sách nhưng tự tin cao | Cao | Trung bình-cao | Đây là failure user khó phát hiện ngay, tác động trực tiếp đến quyết định mua và niềm tin |
+| #2 Trả lời mơ hồ không hỏi làm rõ | Trung bình-cao | Cao | Xuất hiện thường xuyên ở hội thoại thực tế, làm giảm chất lượng toàn bộ funnel tư vấn |
+| #3 Out-of-scope/injection | Cao | Trung bình | Tần suất có thể thấp hơn #2 nhưng hậu quả thương hiệu và độ tin cậy cao |
 
-1. Failure mode nào user THẤY ngay? → ít nguy hiểm (user tự sửa)
-2. Failure mode nào user KHÔNG BIẾT? → nguy hiểm nhất (thiệt hại âm thầm)
-3. Failure mode nào ĐÃ XẢY RA rồi mới biết? → cần prevention, không chỉ detection
-4. Nghĩ từ góc automation/augmentation: automation → failure ngầm nhiều hơn
+## Red flags theo phần 04 (để theo dõi sau khi chạy)
 
----
+| Metric | Threshold đề xuất | Red flag |
+|--------|-------------------|----------|
+| Precision cho câu trả lời tài chính/chính sách | >= 95% | < 90% trong 1 tuần |
+| Tỉ lệ phiên phải hỏi lại do trả lời mơ hồ | <= 20% | > 35% trong 1 tuần |
+| Out-of-scope accuracy (từ chối/chuyển đúng) | >= 98% | < 95% trong 1 tuần |
+| Handoff rate sau câu trả lời AI | 20-40% (mục tiêu giai đoạn đầu) | > 55% kèm dislike tăng |
 
-## Mở rộng (optional — bonus)
+## Liên kết 4 paths (phần 03) vào mitigation
 
-### Severity × likelihood matrix
-
-Xếp failure modes vào ma trận để ưu tiên mitigation:
-
-```
-            Likelihood thấp          Likelihood cao
-          ┌────────────────────┬────────────────────┐
-Severity  │                    │                    │
-cao       │   Monitor + plan   │   FIX NGAY         │
-          │                    │   (top priority)   │
-          ├────────────────────┼────────────────────┤
-Severity  │                    │                    │
-thấp      │   Accept           │   Fix khi có       │
-          │   (không ưu tiên)  │   thời gian        │
-          └────────────────────┴────────────────────┘
-```
-
-Đặt 3 failure modes của nhóm vào đâu trong ma trận? Có failure mode nào severity cao + likelihood cao mà chưa có mitigation?
-
-### Cascade failure
-
-Khi 1 failure gây ra failure khác:
-
-```
-VD: AI gợi ý sai khoa → bệnh nhân đặt lịch sai khoa → bác sĩ khám không đúng chuyên môn
-    → bệnh nhân phải đặt lại → mất thời gian + tiền + niềm tin
-```
-
-Vẽ chuỗi hậu quả cho failure mode nguy hiểm nhất của nhóm. Chuỗi dài bao nhiêu bước trước khi có người phát hiện?
-
-### Adversarial / misuse scenarios
-
-User cố tình dùng sai hoặc tấn công:
-
-| Scenario | Hậu quả | Phòng tránh |
-|----------|---------|-------------|
-| *VD: User nhập prompt injection vào input* |   |   |
-| *VD: User spam request để tăng cost* |   |   |
-| *VD: User dùng AI output làm bằng chứng sai* |   |   |
-
-Không cần giải quyết hết — liệt kê và chọn 1-2 cái đáng phòng nhất.
-
-### Câu hỏi mở rộng
-
-- Failure mode nào sẽ xuất hiện ở scale lớn mà ở prototype không thấy?
-- Nếu product chạy 6 tháng không ai theo dõi, failure nào sẽ tệ dần theo thời gian (model drift)?
-- Automation → augmentation (hoặc ngược lại) có giảm được failure mode nào không?
+- Happy: chỉ trả lời khi có đủ dữ liệu và nguồn tin cậy.
+- Low-confidence: chủ động báo không chắc, yêu cầu thêm thông tin hoặc handoff.
+- Failure: luôn có cơ chế user báo sai nhanh (dislike, "sai rồi", nút chuyển người thật).
+- Correction: log chỉnh sửa của user để cập nhật tri thức và cải thiện rule/tool ở vòng sau.
