@@ -1,27 +1,20 @@
-# AI Product Canvas — template
-
-Điền Canvas cho product AI của nhóm. Mỗi ô có câu hỏi guide — trả lời trực tiếp, xóa phần in nghiêng khi điền.
-
----
+﻿# AI Product Canvas — VinFast AI Assistant
 
 ## Canvas
 
 |   | Value | Trust | Feasibility |
 |---|-------|-------|-------------|
 | **Câu hỏi guide** | User nào? Pain gì? AI giải quyết gì mà cách hiện tại không giải được? | Khi AI sai thì user bị ảnh hưởng thế nào? User biết AI sai bằng cách nào? User sửa bằng cách nào? | Cost bao nhiêu/request? Latency bao lâu? Risk chính là gì? |
-| **Trả lời** | *Nhân viên văn phòng mất 30 phút/ngày phân loại email — AI gợi ý nhãn, giảm còn 5 phút* | *AI gắn sai nhãn → user thấy ngay khi đọc email, sửa 1 click, hệ thống học từ correction* | *~$0.01/email, latency <2s, risk: hallucinate nội dung nhạy cảm nếu dùng external API* |
+| **Trả lời** | Khách hàng mua xe ô tô điện VinFast. Chờ đợi tư vấn lâu, khó xin ước tính trả góp ngay lập tức. AI trả lời ngay tức khắc 24/7 và gọi tool phân tích trả góp tự động. | AI tính giá sai hoặc sai thông số gây hiểu nhầm. Khách hàng nhận ra nếu so lại với web chính thức. Sửa bằng cách yêu cầu kết nối với Telesale/Sales thực đính chính. | ~.01-0.03/request tùy LLM. Latency <3s. Risk: Hallucinate chính sách giá hoặc thông tin nhạy cảm. |
 
 ---
 
 ## Automation hay augmentation?
 
 ☐ Automation — AI làm thay, user không can thiệp
-☐ Augmentation — AI gợi ý, user quyết định cuối cùng
+☒ Augmentation — AI gợi ý, user quyết định cuối cùng
 
-**Justify:** ___
-*VD: Augmentation — user thấy gợi ý và chấp nhận/từ chối, cost of reject = 0*
-
-Gợi ý: nếu AI sai mà user không biết → automation nguy hiểm, cân nhắc augmentation.
+**Justify:** Công cụ này chủ yếu đưa ra ước tính trả góp dựa vào mong muốn hiện tại của khách. Với giá trị sản phẩm lớn như xe hơi, việc chốt deal cần con người làm bước cuối (ký hợp đồng thật). AI đóng vai trò chốt sale vòng ngoài (Augmentation).
 
 ---
 
@@ -29,19 +22,9 @@ Gợi ý: nếu AI sai mà user không biết → automation nguy hiểm, cân n
 
 | # | Câu hỏi | Trả lời |
 |---|---------|---------|
-| 1 | User correction đi vào đâu? | *Mỗi lần user sửa → ghi correction log → dùng để cải thiện model* |
-| 2 | Product thu signal gì để biết tốt lên hay tệ đi? | *Implicit: acceptance rate. Explicit: thumbs down. Correction: user sửa output* |
-| 3 | Data thuộc loại nào? ☐ User-specific · ☐ Domain-specific · ☐ Real-time · ☐ Human-judgment · ☐ Khác: ___ | *User-specific + Real-time — model chung không biết pattern riêng của từng người* |
+| 1 | User correction đi vào đâu? | Mỗi lần khách hàng dislike/hỏi lại câu cũ/yêu cầu gặp người thật -> Log vào metric dashboard. |
+| 2 | Product thu signal gì để biết tốt lên hay tệ đi? | Implicit: Handoff rate, Session length. Explicit: Thumbs up / Thumbs down trên tin nhắn trả lời. |
+| 3 | Data thuộc loại nào? |thông số  Domain-specific (xe VinFast) + Real-time (Bảng giá và khuyến mãi mới nhất được crawl về hệ thống) |
 
-**Có marginal value không?** (Model đã biết cái này chưa? Ai khác cũng thu được data này không?)
-___
-
----
-
-## Cách dùng
-
-1. Điền Value trước — chưa rõ pain thì chưa điền Trust/Feasibility
-2. Trust: trả lời 4 câu UX (đúng → sai → không chắc → user sửa)
-3. Feasibility: ước lượng cost, không cần chính xác — order of magnitude đủ
-4. Learning signal: nghĩ về vòng lặp dài hạn, không chỉ demo ngày mai
-5. Đánh [?] cho chỗ chưa biết — Canvas là hypothesis, không phải đáp án
+**Có marginal value không?**
+Có. Data bảng giá trả góp, chiết khấu và ưu đãi chính sách thay đổi linh hoạt theo đợt bán hàng của VinFast mà Model nền tảng (như ChatGPT/Gemini gốc) không thể có. Thu thập hội thoại thực tế giúp lọc các FAQ phức tạp để cải tiến Knowledge Base.
