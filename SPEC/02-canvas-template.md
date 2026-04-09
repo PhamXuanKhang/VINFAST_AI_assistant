@@ -4,8 +4,7 @@
 
 |   | Value | Trust | Feasibility |
 |---|-------|-------|-------------|
-| **Câu hỏi guide** | User nào? Pain gì? AI giải quyết gì mà cách hiện tại không giải được? | Khi AI sai thì user bị ảnh hưởng thế nào? User biết AI sai bằng cách nào? User sửa bằng cách nào? | Cost bao nhiêu/request? Latency bao lâu? Risk chính là gì? |
-| **Trả lời** | Khách hàng mua xe ô tô điện VinFast. Chờ đợi tư vấn lâu, khó xin ước tính trả góp ngay lập tức. AI trả lời ngay tức khắc 24/7 và gọi tool phân tích trả góp tự động. | AI tính giá sai hoặc sai thông số gây hiểu nhầm. Khách hàng nhận ra nếu so lại với web chính thức. Sửa bằng cách yêu cầu kết nối với Telesale/Sales thực đính chính. | ~.01-0.03/request tùy LLM. Latency <3s. Risk: Hallucinate chính sách giá hoặc thông tin nhạy cảm. |
+| **Trả lời** | Khách hàng mua xe ô tô điện VinFast. Chờ đợi tư vấn lâu, khó xin ước tính trả góp ngay lập tức. AI trả lời ngay tức khắc 24/7 và gọi tool phân tích trả góp tự động. | AI tính giá sai hoặc sai thông số gây hiểu nhầm. Khách hàng nhận ra nếu so lại với web chính thức. Sửa bằng cách yêu cầu kết nối với Telesale/Sales thực đính chính. | ~0.01-0.03$/request tùy LLM. Latency <3s. Risk: Hallucinate chính sách giá hoặc thông tin nhạy cảm. |
 
 ---
 
